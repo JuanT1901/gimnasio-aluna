@@ -3,9 +3,14 @@ import Sidebar from 'app/components/Sidebar'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaFilePdf, FaDownload } from 'react-icons/fa'
 
-export default async function CircularesPage({ params }: { params: { tipo: string } }) {
+type PageProps = {
+  params: Promise<{ tipo: string }>
+}
+
+export default async function CircularesPage({ params }: PageProps) {
   const supabase = await createClient()
-  const tipo = params.tipo 
+  const resolvedParams = await params;
+  const tipo = resolvedParams.tipo 
 
   // Verificar usuario
   const { data: { user } } = await supabase.auth.getUser()

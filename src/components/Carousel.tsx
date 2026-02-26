@@ -44,7 +44,7 @@ const Carousel = () => {
     return () => {
       slider.destroy()
     }
-  }, [autoplay])
+  }, [autoplay, instanceRef])
 
   return (
     <div className={styles.carouselWrapper}>
