@@ -63,13 +63,11 @@ const Navbar = () => {
               Ponte en contacto
             </Link>
           </li>
-          {/*
           <li>
-            <Link href="/plataformas" onClick={closeMenu}>
-              Plataformas
+            <Link href="/login" onClick={closeMenu}>
+              Plataforma
             </Link>
           </li>
-          */}
           <li>
             <a 
               href="https://www.psepagos.co/PSEHostingUI/ShowTicketOffice.aspx?ID=8608" 

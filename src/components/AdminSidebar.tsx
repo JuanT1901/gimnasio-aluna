@@ -8,6 +8,8 @@ import styles from 'app/styles/pages/Dashboard.module.scss'
 import { 
   FaUserShield, 
   FaUsers, 
+  FaUserPlus,
+  FaChalkboardTeacher,
   FaFileUpload,
   FaHome
 } from 'react-icons/fa'
@@ -15,7 +17,7 @@ import {
 export default function AdminSidebar() {
   const pathname = usePathname()
 
-  const isActive = (path: string) => pathname.startsWith(path) ? styles.active : ''
+  const isActive = (path: string) => pathname === path ? styles.active : ''
 
   return (
     <aside className={styles.sidebar}>
@@ -27,10 +29,15 @@ export default function AdminSidebar() {
       <nav className={styles.nav}>
         <Link 
           href="/plataformas/admin/dashboard" 
-          className={pathname === '/plataformas/admin/dashboard' ? styles.active : ''}
+          className={isActive('/plataformas/admin/dashboard')}
         >
           <FaHome /> Resumen
         </Link>
+        
+        {/* --- SECCIÓN ESTUDIANTES --- */}
+        <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '15px', marginLeft: '15px', fontWeight: 'bold' }}>
+          Estudiantes
+        </div>
         
         <Link 
           href="/plataformas/admin/estudiantes" 
@@ -38,6 +45,30 @@ export default function AdminSidebar() {
         >
           <FaUsers /> Gestión Estudiantes
         </Link>
+
+        <Link 
+          href="/plataformas/admin/estudiantes/importar" 
+          className={isActive('/plataformas/admin/estudiantes/importar')}
+        >
+          <FaUserPlus /> Importación Masiva
+        </Link>
+
+        {/* --- SECCIÓN PROFESORES --- */}
+        <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '15px', marginLeft: '15px', fontWeight: 'bold' }}>
+          Equipo Docente
+        </div>
+
+        <Link 
+          href="/plataformas/admin/profesores" 
+          className={isActive('/plataformas/admin/profesores')}
+        >
+          <FaChalkboardTeacher /> Gestión Profesores
+        </Link>
+
+        {/* --- SECCIÓN DOCUMENTOS --- */}
+        <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '15px', marginLeft: '15px', fontWeight: 'bold' }}>
+          Documentos
+        </div>
 
         <Link 
           href="/plataformas/admin/circulares" 

@@ -1,3 +1,6 @@
+'use client'
+
+import { usePathname } from 'next/navigation'
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,7 +16,13 @@ import {
   FaCode
 } from 'react-icons/fa';
 
-const Footer = () => {
+export default function Footer() {
+  const pathname = usePathname()
+
+  if (pathname.startsWith('/plataformas') || pathname === '/login') {
+    return null
+  }
+
   return (
     <footer className={styles.footer}>
       
@@ -134,5 +143,3 @@ const Footer = () => {
     </footer>
   );
 };
-
-export default Footer;
