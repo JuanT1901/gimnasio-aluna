@@ -4,6 +4,7 @@ import "../styles/global.scss";
 import Navbar from "app/components/Navbar";
 import WhatsappButton from "app/components/WhatsappButton";
 import Footer from "app/components/Footer";
+import AutoLogout from 'app/components/AutoLogout'
 
 const poppins = Poppins({
   weight: ['100', '200', '300', '400', '500', '600', '700'],
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={poppins.variable}>
       <body className={`${poppins.variable}`}>
+        <AutoLogout />
         <Navbar />
         {children}
         <WhatsappButton />

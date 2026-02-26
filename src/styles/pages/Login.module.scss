@@ -1,0 +1,142 @@
+@use "sass:color"; 
+
+$blue-aluna: #3CA0E8;
+$dark-bg: #0f172a;
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 20px;
+}
+
+.loginCard {
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+
+.logoHeader {
+  margin-bottom: 30px;
+
+  .logoWrapper {
+    margin-bottom: 15px;
+  }
+  
+  .logo {
+    object-fit: contain;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 5px;
+    font-weight: 800;
+  }
+
+  p {
+    color: #666;
+    font-size: 0.95rem;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inputGroup {
+  position: relative;
+
+  .icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 1rem;
+  }
+
+  input {
+    width: 100%;
+    padding: 12px 15px 12px 45px; /* Espacio para el icono */
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.3s;
+    outline: none;
+
+    &:focus {
+      border-color: $blue-aluna;
+      box-shadow: 0 0 0 4px rgba(60, 160, 232, 0.1);
+    }
+  }
+}
+
+.errorMessage {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.loginBtn {
+  background: linear-gradient(90deg, $blue-aluna, #5E35B1);
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(60, 160, 232, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+}
+
+.footer {
+  margin-top: 25px;
+  font-size: 0.85rem;
+  color: #666;
+
+  a {
+    color: $blue-aluna;
+    text-decoration: none;
+    font-weight: 600;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
