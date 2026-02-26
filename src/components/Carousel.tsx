@@ -1,10 +1,10 @@
 'use client';
 
+import React, { useEffect, useCallback, useRef, useState} from 'react';
 import { useKeenSlider } from "keen-slider/react"
 import "keen-slider/keen-slider.min.css"
 import styles from 'app/styles/components/Carousel.module.scss'
 import Image from "next/image"
-import { useEffect, useState, useRef } from "react"
 
 const images = [
   "/images/Carrusel_01.jpg",
@@ -27,13 +27,13 @@ const Carousel = () => {
       autoplay()
     },
   })
-
-  const autoplay = () => {
+  
+  const autoplay = useCallback(() => {
     if (timeout.current) clearTimeout(timeout.current)
     timeout.current = setTimeout(() => {
       instanceRef.current?.next()
     }, 4000) // Aumenté a 4s para dar más tiempo de ver la foto
-  }
+  }, [instanceRef])
 
   useEffect(() => {
     const slider = instanceRef.current
@@ -44,8 +44,7 @@ const Carousel = () => {
     return () => {
       slider.destroy()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplay, instanceRef])
+  }, [autoplay, instanceRef]);
 
   return (
     <div className={styles.carouselWrapper}>
