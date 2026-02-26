@@ -44,6 +44,7 @@ const Carousel = () => {
     return () => {
       slider.destroy()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplay, instanceRef])
 
   return (

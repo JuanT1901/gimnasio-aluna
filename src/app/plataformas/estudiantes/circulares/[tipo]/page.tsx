@@ -7,6 +7,13 @@ type PageProps = {
   params: Promise<{ tipo: string }>
 }
 
+export function generateStaticParams() {
+  return [
+    { tipo: 'generales' },
+    { tipo: 'específicas' },
+  ];
+}
+
 export default async function CircularesPage({ params }: PageProps) {
   const supabase = await createClient()
   const resolvedParams = await params;
