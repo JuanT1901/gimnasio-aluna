@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from 'app/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Sidebar from 'app/components/Sidebar'

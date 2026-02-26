@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import LogoutButton from 'app/components/LogoutButton'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { 
-  FaUserShield, 
   FaUsers, 
   FaUserPlus,
   FaChalkboardTeacher,

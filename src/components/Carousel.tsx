@@ -35,13 +35,12 @@ const Carousel = () => {
     }, 4000) // Aumenté a 4s para dar más tiempo de ver la foto
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const slider = instanceRef.current
     if (!slider) return
 
     slider.on("slideChanged", autoplay)
-    slider.on("dragStarted", () => clearTimeout(timeout.current!)) // Pausa si el usuario toca
+    slider.on("dragStarted", () => clearTimeout(timeout.current!))
     return () => {
       slider.destroy()
     }

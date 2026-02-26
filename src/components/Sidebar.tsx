@@ -7,8 +7,6 @@ import LogoutButton from 'app/components/LogoutButton'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { 
   FaUserGraduate, 
-  FaBook, 
-  FaChalkboardTeacher, 
   FaFilePdf, 
   FaChevronDown, 
   FaGlobe, 

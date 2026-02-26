@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState } from 'react'
@@ -36,7 +37,7 @@ export default function UploadForm({ grades }: { grades: Grade[] }) {
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
       
       // 2. Subir el archivo al Storage de Supabase
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('circulars')
         .upload(fileName, file)
 

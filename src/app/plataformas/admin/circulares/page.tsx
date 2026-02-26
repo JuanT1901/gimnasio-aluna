@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { createClient } from 'app/utils/supabase/server'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import UploadForm from './UploadForm'

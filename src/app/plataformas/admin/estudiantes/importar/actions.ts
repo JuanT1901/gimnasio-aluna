@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
@@ -10,7 +11,7 @@ const supabaseAdmin = createClient(
 export async function procesarImportacionMasiva(estudiantes: any[]) {
   let creados = 0;
   let errores = 0;
-  let detallesErrores: string[] = [];
+  const detallesErrores: string[] = [];
 
   for (const [index, est] of estudiantes.entries()) {
     const fila = index + 2; // +2 para compensar que el índice inicia en 0 y la fila 1 son los títulos
@@ -58,7 +59,9 @@ export async function procesarImportacionMasiva(estudiantes: any[]) {
       }
 
       // 4. Separar credenciales de los datos de la ficha
-      const { email, password, ...datosPerfil } = estLimpio;
+      const datosPerfil = { ...estLimpio };
+      delete datosPerfil.email;
+      delete datosPerfil.password;
 
       // 5. Guardar la ficha en public.profiles
       const { error: dbError } = await supabaseAdmin.from('profiles').upsert({
