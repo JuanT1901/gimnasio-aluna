@@ -305,8 +305,8 @@ function ContenidoBoletinPrimariaPDF() {
 
                           return (
                             <tr key={`${idxAsig}-${idxC}`} className="salto-pagina">
-                              <td className="td-bordeado">{textoCompetencia}</td>
-                              <td className="td-bordeado">{textoDesempeno}</td>
+                              <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoCompetencia}</td>
+                              <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoDesempeno}</td>
                               <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
                                 <div style={{ display: 'flex', height: '100%' }}>
                                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>

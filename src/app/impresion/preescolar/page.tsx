@@ -42,7 +42,6 @@ function ContenidoBoletinPreescolarPDF() {
       setEstudiante(estData)
 
       if (estData) {
-        // 🌟 EL ESCUDO: Si no está en la lista de preescolar, bloquear acceso
         if (!CURSOS_PREESCOLAR.includes(estData.course_name)) {
           setErrorNivel(true);
           setCargando(false);
@@ -173,7 +172,6 @@ function ContenidoBoletinPreescolarPDF() {
 
   if (cargando) return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={40} color="#3b82f6" /></div>
 
-  // 🌟 VISTA DEL ERROR 404
   if (errorNivel) {
     return (
       <div style={{ textAlign: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
@@ -262,7 +260,7 @@ function ContenidoBoletinPreescolarPDF() {
                       <tr key={idxC} className="salto-pagina">
                         <td style={{ 
                           verticalAlign: 'middle', 
-                          textAlign: 'center', 
+                          textAlign: 'justify', 
                           fontWeight: 'bold',
                           borderTop: bordeSup,
                           borderBottom: bordeInf,
@@ -271,8 +269,8 @@ function ContenidoBoletinPreescolarPDF() {
                         }}>
                           {isFirst ? tituloUI : ''}
                         </td>
-                        <td className="td-bordeado">{c.competencia}</td>
-                        <td className="td-bordeado">{c.desempeno}</td>
+                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.competencia}</td>
+                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno}</td>
                         <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
                           <div style={{ display: 'flex', height: '100%' }}>
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>

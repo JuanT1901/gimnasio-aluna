@@ -256,7 +256,9 @@ function ContenidoBoletinBachilleratoPDF() {
                     {asignatura.competencias.length > 0 ? (
                       asignatura.competencias.map((c: any, idxC: number) => (
                         <tr key={idxC} className="salto-pagina">
-                          <td>{c.competencia || c.Competencia || "-"}</td>
+                          <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
+                            {c.competencia || c.Competencia || "-"}
+                          </td>
                           <td colSpan={3}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
                         </tr>
                       ))

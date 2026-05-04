@@ -4,9 +4,12 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
-import { FaChalkboardTeacher, FaBook, FaSpinner, FaUpload, FaArrowLeft, FaEdit, FaList, FaPlus, FaTrash, FaSave, FaUserEdit, FaUserCheck, FaUserSlash } from 'react-icons/fa'
-import { toggleEstadoProfesor } from './actions'
+import { cambiarContrasenaProfesor, toggleEstadoProfesor } from './actions'
 import styles from 'app/styles/pages/Dashboard.module.scss'
+import { FaChalkboardTeacher, FaBook, FaSpinner, 
+         FaUpload, FaArrowLeft, FaEdit, FaList, 
+         FaPlus, FaTrash, FaSave, FaUserEdit, 
+         FaUserCheck, FaUserSlash, FaKey } from 'react-icons/fa'
 
 export default function AdminProfesoresPage() {
   const [supabase] = useState(() => createBrowserClient(
@@ -14,22 +17,24 @@ export default function AdminProfesoresPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ))
 
-  // 🌟 ESTADOS DE NAVEGACIÓN
   const [vista, setVista] = useState<'lista' | 'clases' | 'editar'>('lista')
   const [profeActivo, setProfeActivo] = useState<any>(null)
 
-  // 🌟 ESTADOS DE DATOS
   const [profesores, setProfesores] = useState<any[]>([])
   const [clasesProfe, setClasesProfe] = useState<any[]>([])
   const [cursosDisponibles, setCursosDisponibles] = useState<any[]>([])
-  const [cargando, setCargando] = useState(true)
-
-  // 🌟 ESTADOS DE FORMULARIOS
-  const [nuevaMateria, setNuevaMateria] = useState('')
   const [cursoSeleccionadoId, setCursoSeleccionadoId] = useState('')
+  
+  // 🌟 NUEVOS ESTADOS PARA MATERIAS
+  const [materiasDisponibles, setMateriasDisponibles] = useState<any[]>([])
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState('')
+
+  const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
 
-  // 🌟 NUEVO ESTADO: Objeto unificado para todo el perfil de RRHH
+  const [nuevaContrasena, setNuevaContrasena] = useState('')
+  const [cambiandoClave, setCambiandoClave] = useState(false)
+
   const [editData, setEditData] = useState({
     full_name: '',
     doc_number: '',
@@ -44,7 +49,7 @@ export default function AdminProfesoresPage() {
   })
 
   const cambiarEstado = async (profe: any) => {
-    const estaActivo = profe.is_active !== false; // Si es null o true, está activo
+    const estaActivo = profe.is_active !== false;
     const accion = estaActivo ? 'DESHABILITAR' : 'HABILITAR';
     
     if (!confirm(`🚨 ¿Estás seguro de que deseas ${accion} al profesor ${profe.full_name}?`)) return;
@@ -66,7 +71,6 @@ export default function AdminProfesoresPage() {
     if (vista === 'lista') {
       cargarProfesores()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vista])
 
   const cargarProfesores = async () => {
@@ -111,30 +115,103 @@ export default function AdminProfesoresPage() {
     setCargando(false)
   }
 
+  // 🌟 NUEVO EFECTO: Carga las materias dinámicamente según el curso seleccionado
+  useEffect(() => {
+    if (!cursoSeleccionadoId) return
+
+    const cargarMaterias = async () => {
+      const { data } = await supabase
+        .from('subjects') // Ajusta este nombre si tu tabla se llama distinto (ej. 'materias')
+        .select('id, name')
+        .eq('grade_id', cursoSeleccionadoId)
+        .order('name', { ascending: true })
+
+      if (data) {
+        setMateriasDisponibles(data)
+        if (data.length > 0) setMateriaSeleccionada(data[0].name)
+        else setMateriaSeleccionada('')
+      }
+    }
+    cargarMaterias()
+  }, [cursoSeleccionadoId, supabase])
+
   const agregarClase = async () => {
-    if (!nuevaMateria || !cursoSeleccionadoId) return alert('Por favor llena todos los campos')
-    
+    if (!materiaSeleccionada || !cursoSeleccionadoId) return alert('Por favor selecciona un curso y una materia.')
     setGuardando(true)
-    const cursoObj = cursosDisponibles.find(c => c.id === cursoSeleccionadoId)
+
+    const cursoObj = cursosDisponibles.find(c => String(c.id) === String(cursoSeleccionadoId))
+    if (!cursoObj) {
+      alert('Error interno: No se encontró el curso.');
+      setGuardando(false);
+      return;
+    }
+
+    const { data: asignacionesExistentes, error: checkError } = await supabase
+      .from('teacher_assignments')
+      .select('id, teacher_id, profiles(full_name)')
+      .eq('grade_id', cursoObj.id)
+      .eq('subject_name', materiaSeleccionada)
+
+    if (checkError) {
+      alert('Error al verificar la base de datos: ' + checkError.message);
+      setGuardando(false);
+      return;
+    }
+
+    const hayAsignaciones = asignacionesExistentes && asignacionesExistentes.length > 0;
+    
+    const laTieneEsteProfe = hayAsignaciones && asignacionesExistentes.some(a => a.teacher_id === profeActivo.id);
+    
+    if (laTieneEsteProfe) {
+      alert('Este profesor ya tiene asignada esta materia en este curso.');
+      setGuardando(false);
+      return;
+    }
+
+    if (hayAsignaciones) {
+      // @ts-expect-error
+      const profeActual = asignacionesExistentes[0].profiles?.full_name || 'otro profesor';
+      
+      const confirmar = confirm(
+        `⚠️ ATENCIÓN: La materia "${materiaSeleccionada}" ya está asignada al profesor(a) ${profeActual} en este curso.\n\n¿Deseas quitarle la materia a ${profeActual} y reasignársela a ${profeActivo.full_name}?`
+      );
+
+      if (!confirmar) {
+        setGuardando(false);
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('teacher_assignments')
+        .update({ teacher_id: profeActivo.id })
+        .eq('grade_id', cursoObj.id)
+        .eq('subject_name', materiaSeleccionada)
+
+      if (updateError) {
+        alert('Error al reasignar: ' + updateError.message)
+      } else {
+        alert('✅ Materia reasignada con éxito.')
+        cargarClasesYCursos()
+      }
+      setGuardando(false);
+      return;
+    }
 
     const nuevaAsignacion = {
-      teacher_id: profeActivo.id,
-      grade_id: cursoObj.id,
-      course_name: cursoObj.name,
-      subject_name: nuevaMateria.trim()
+      teacher_id: profeActivo.id, 
+      grade_id: cursoObj.id, 
+      course_name: cursoObj.name, 
+      subject_name: materiaSeleccionada 
     }
 
-    const { data, error } = await supabase
-      .from('teacher_assignments')
-      .insert([nuevaAsignacion])
-      .select()
-
+    const { data, error } = await supabase.from('teacher_assignments').insert([nuevaAsignacion]).select()
+    
     if (error) {
       alert('Error al asignar la clase: ' + error.message)
-    } else if (data) {
-      setClasesProfe([...clasesProfe, data[0]])
-      setNuevaMateria('')
+    } else if (data) { 
+      setClasesProfe([...clasesProfe, data[0]]); 
     }
+    
     setGuardando(false)
   }
 
@@ -151,7 +228,6 @@ export default function AdminProfesoresPage() {
     }
   }
 
-  // 🌟 NUEVO: Llenar todo el formulario al abrir
   const abrirEdicion = (profe: any) => {
     setProfeActivo(profe)
     setEditData({
@@ -169,13 +245,11 @@ export default function AdminProfesoresPage() {
     setVista('editar')
   }
 
-  // 🌟 NUEVO: Manejador genérico para todos los inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setEditData(prev => ({ ...prev, [name]: value }))
   }
 
-  // 🌟 NUEVO: Guardar todo el objeto de una vez
   const guardarPerfil = async () => {
     setGuardando(true)
     const { error } = await supabase
@@ -190,8 +264,25 @@ export default function AdminProfesoresPage() {
     } else {
       alert('¡Perfil actualizado con éxito!')
       setVista('lista')
-      cargarProfesores() // Recargamos para que se vean los cambios en la tabla si modificó el nombre
+      cargarProfesores()
     }
+  }
+
+  const ejecutarCambioClave = async () => {
+    if (!nuevaContrasena) return alert('Debes escribir una contraseña nueva.')
+    if (nuevaContrasena.length < 8) return alert('La contraseña debe tener al menos 8 caracteres.')
+    if (!confirm(`¿Estás seguro de cambiar la contraseña de acceso de ${profeActivo.full_name}?`)) return;
+
+    setCambiandoClave(true);
+    const resultado = await cambiarContrasenaProfesor(profeActivo.id, nuevaContrasena);
+    
+    if (resultado.exito) {
+      alert(`✅ Contraseña restablecida con éxito.`);
+      setNuevaContrasena(''); // Limpiamos el campo
+    } else {
+      alert(`❌ Error al cambiar contraseña: ${resultado.error}`);
+    }
+    setCambiandoClave(false);
   }
 
   if (cargando && vista === 'lista') return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={50} color="#3b82f6" /></div>
@@ -289,7 +380,7 @@ export default function AdminProfesoresPage() {
         </>
       )}
 
-      {/* 🟢 VISTA 2: CLASES DEL PROFESOR (Intacta) */}
+      {/* 🟢 VISTA 2: CLASES DEL PROFESOR */}
       {vista === 'clases' && profeActivo && (
         <>
           <header className={styles.header} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
@@ -334,32 +425,44 @@ export default function AdminProfesoresPage() {
 
             <div className={styles.card} style={{ flex: '1', minWidth: '300px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
               <h3 style={{ marginTop: 0, color: '#166534' }}>Asignar Nueva Clase</h3>
+              
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9rem', color: '#15803d' }}>Curso / Grado:</label>
                 <select 
                   value={cursoSeleccionadoId} 
                   onChange={(e) => setCursoSeleccionadoId(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #86efac' }}
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #86efac', backgroundColor: 'white' }}
                 >
                   {cursosDisponibles.map(curso => (
                     <option key={curso.id} value={curso.id}>{curso.name}</option>
                   ))}
                 </select>
               </div>
+
+              {/* 🌟 NUEVO SELECTOR DINÁMICO DE MATERIAS */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9rem', color: '#15803d' }}>Nombre de la Materia:</label>
-                <input 
-                  type="text" 
-                  value={nuevaMateria}
-                  onChange={(e) => setNuevaMateria(e.target.value)}
-                  placeholder="Ej: Matemáticas"
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #86efac' }}
-                />
+                {materiasDisponibles.length > 0 ? (
+                  <select 
+                    value={materiaSeleccionada} 
+                    onChange={(e) => setMateriaSeleccionada(e.target.value)} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #86efac', backgroundColor: 'white' }}
+                  >
+                    {materiasDisponibles.map(materia => (
+                      <option key={materia.id} value={materia.name}>{materia.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: '5px 0' }}>
+                    No hay materias registradas para este curso en la base de datos.
+                  </p>
+                )}
               </div>
+
               <button 
                 onClick={agregarClase}
-                disabled={guardando || !nuevaMateria}
-                style={{ width: '100%', backgroundColor: '#10b981', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: (guardando || !nuevaMateria) ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
+                disabled={guardando || !materiaSeleccionada || materiasDisponibles.length === 0}
+                style={{ width: '100%', backgroundColor: '#10b981', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: (guardando || !materiaSeleccionada || materiasDisponibles.length === 0) ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
               >
                 {guardando ? <FaSpinner className="fa-spin" /> : <FaPlus />} Asignar Materia
               </button>
@@ -384,10 +487,8 @@ export default function AdminProfesoresPage() {
           </header>
 
           <div className={styles.card} style={{ maxWidth: '800px', margin: '0 auto' }}>
-            {/* 🌟 FORMULARIO EN GRID */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
               
-              {/* Ocupa las dos columnas */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#334155' }}>Nombre Completo:</label>
                 <input type="text" name="full_name" value={editData.full_name} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
@@ -448,6 +549,33 @@ export default function AdminProfesoresPage() {
               {guardando ? <FaSpinner className="fa-spin" /> : <FaSave />}
               Guardar Expediente
             </button>
+
+            <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px dashed #e2e8f0', backgroundColor: '#fef2f2', padding: '20px', borderRadius: '8px', border: '1px solid #fca5a5' }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FaKey /> Zona de Seguridad: Restablecer Acceso
+              </h3>
+              <p style={{ color: '#7f1d1d', fontSize: '0.9rem', marginBottom: '15px' }}>
+                Usa esta función solo si el profesor ha olvidado su contraseña o por solicitud administrativa. Escribe una nueva clave (mín. 8 caracteres).
+              </p>
+              
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="Escriba la nueva contraseña..." 
+                  value={nuevaContrasena} 
+                  onChange={(e) => setNuevaContrasena(e.target.value)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #fca5a5', fontWeight: 'bold' }}
+                />
+                <button 
+                  onClick={ejecutarCambioClave}
+                  disabled={cambiandoClave || !nuevaContrasena}
+                  style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '12px 20px', borderRadius: '6px', fontWeight: 'bold', cursor: (cambiandoClave || !nuevaContrasena) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {cambiandoClave ? <FaSpinner className="fa-spin" /> : <FaKey />} Forzar Cambio de Clave
+                </button>
+              </div>
+            </div>
+
           </div>
         </>
       )}
