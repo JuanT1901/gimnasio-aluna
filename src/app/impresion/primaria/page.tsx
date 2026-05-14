@@ -7,27 +7,37 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FaSpinner, FaPrint, FaThumbsUp } from 'react-icons/fa'
 
-const MAPA_AREAS: Record<string, string> = {
+const MAPA_AREAS_RAW: Record<string, string> = {
   'Matematicas': 'Matemáticas',
   'Calculo Mental': 'Matemáticas',
   'Geometria': 'Matemáticas',
   'Estadistica': 'Matemáticas',
+  'Estadisticas': 'Matemáticas',
   'Ciencias': 'Ciencias Naturales y Educación Ambiental',
   'Pre fisica': 'Ciencias Naturales y Educación Ambiental',
   'Pre quimica': 'Ciencias Naturales y Educación Ambiental',
   'Español': 'Humanidades',
-  'Lectura crítica': 'Humanidades',
-  'Producción textual': 'Humanidades',
+  'Lectura critica': 'Humanidades',
+  'Produccion textual': 'Humanidades',
   'Ingles': 'Humanidades',
   'Sociales': 'Ciencias Sociales',
   'Historia': 'Ciencias Sociales',
   'Geografia': 'Ciencias Sociales',
   'Sistemas': 'Tecnología e Informática',
   'Arte': 'Educación Artística y Cultural',
-  'Educación fisica': 'Educación Artística y Cultural',
+  'Educacion fisica': 'Educación Artística y Cultural',
   'Musica': 'Educación Artística y Cultural',
   'Convivencia': 'Comportamiento'
 };
+
+const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const MAPA_AREAS: Record<string, string> = {};
+for (const [key, value] of Object.entries(MAPA_AREAS_RAW)) {
+  MAPA_AREAS[normalizar(key)] = value;
+}
+
+const buscarArea = (nombre: string) => MAPA_AREAS[normalizar(nombre)] || 'Otras Áreas';
 
 function ContenidoBoletinPrimariaPDF() {
   const searchParams = useSearchParams()
@@ -96,7 +106,7 @@ function ContenidoBoletinPrimariaPDF() {
         }
 
         const agrupadoPorArea = evaluacionesCrudas.reduce((acc: any[], actual: any) => {
-          const nombreArea = MAPA_AREAS[actual.subject_name] || 'Otras Áreas';
+          const nombreArea = buscarArea(actual.subject_name);
           let areaExistente = acc.find(item => item.area === nombreArea);
           
           if (!areaExistente) {
@@ -305,7 +315,7 @@ function ContenidoBoletinPrimariaPDF() {
 
                           return (
                             <tr key={`${idxAsig}-${idxC}`} className="salto-pagina">
-                              <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoCompetencia}</td>
+                              <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoCompetencia.toUpperCase()}</td>
                               <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoDesempeno}</td>
                               <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
                                 <div style={{ display: 'flex', height: '100%' }}>

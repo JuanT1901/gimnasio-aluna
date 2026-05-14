@@ -5,7 +5,7 @@ import { useEffect, useState, Fragment } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { FaSpinner, FaPrint, FaSeedling, FaChartLine, FaTrophy } from 'react-icons/fa'
+import { FaSpinner, FaPrint } from 'react-icons/fa'
 
 // 🌟 LISTA DE CURSOS DE PREESCOLAR (Para el escudo de seguridad)
 const CURSOS_PREESCOLAR = ['Aventureros', 'Creativos', 'Expertos'];
@@ -103,13 +103,11 @@ function ContenidoBoletinPreescolarPDF() {
     cargarBoletin()
   }, [estudianteId, periodo, supabase])
 
-  const obtenerIconoEscala = (textoEscala: string) => {
-    if (!textoEscala) return null;
-    const t = textoEscala.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (t.includes('iniciado') || t.includes('bajo')) return <FaSeedling size={24} color="#b45309" />
-    if (t.includes('proceso') || t.includes('basico')) return <FaChartLine size={24} color="#1d4ed8" />
-    if (t.includes('alcanzado') || t.includes('alto') || t.includes('superior') || t.includes('excelente')) return <FaTrophy size={24} color="#15803d" />
-    return null
+  const obtenerIconoEscala = (nota: number) => {
+    if (!nota || nota <= 0) return null;
+    if (nota >= 4.1) return <img src="/logro-alcanzado.png" alt="Alcanzado" style={{ width: 32, height: 32 }} />;
+    if (nota >= 3.5) return <img src="/logro-en-proceso.png" alt="En proceso" style={{ width: 32, height: 32 }} />;
+    return <img src="/logro-iniciado.png" alt="Iniciado" style={{ width: 32, height: 32 }} />;
   }
 
   const evaluacionesAgrupadas = evaluaciones.reduce((acc: any[], actual: any) => {
@@ -269,18 +267,15 @@ function ContenidoBoletinPreescolarPDF() {
                         }}>
                           {isFirst ? tituloUI : ''}
                         </td>
-                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.competencia}</td>
+                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{(c.competencia || "-").toUpperCase()}</td>
                         <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno}</td>
                         <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
                           <div style={{ display: 'flex', height: '100%' }}>
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>
-                              {!esSocioAfectiva && (
-                                <strong style={{ fontSize: '1.1rem' }}>{c.nota?.toFixed(1)}</strong>
-                              )}
-                              <span style={{ fontSize: '0.65rem', textAlign: 'center', fontWeight: esSocioAfectiva ? 'bold' : 'normal', lineHeight: '1.1' }}>{c.escala}</span>
+                              <span style={{ fontSize: '0.65rem', textAlign: 'center', fontWeight: 'bold', lineHeight: '1.1' }}>{c.escala}</span>
                             </div>
                             <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                              {obtenerIconoEscala(c.escala)}
+                              {obtenerIconoEscala(parseFloat(c.nota || 0))}
                             </div>
                           </div>
                         </td>

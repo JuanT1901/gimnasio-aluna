@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gimnasio Aluna
 
-## Getting Started
+Plataforma de gestión educativa para el Gimnasio Aluna. Combina un sitio web público con portales autenticados por rol para administradores, profesores y estudiantes.
 
-First, run the development server:
+## Tecnologías
+
+- **Framework:** Next.js 16 (App Router)
+- **Lenguaje:** TypeScript
+- **UI:** React 19
+- **Estilos:** SCSS Modules
+- **Base de datos y autenticación:** Supabase (PostgreSQL)
+
+## Instalación
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Crea un archivo `.env.local` con las siguientes variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=<url-del-proyecto-supabase>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<llave-publica-anon>
+SUPABASE_SERVICE_ROLE_KEY=<llave-service-role>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comandos
 
-## Learn More
+```bash
+npm run dev       # Servidor de desarrollo
+npm run build     # Compilar para producción
+npm run start     # Iniciar en producción
+npm run lint      # Ejecutar ESLint con corrección automática
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura del proyecto
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                        # Rutas (App Router de Next.js)
+│   ├── login/                  # Inicio de sesión
+│   ├── asi-lo-vivimos/         # Páginas informativas del colegio
+│   ├── impresion/              # Vistas de boletines para impresión
+│   │   ├── preescolar/
+│   │   ├── primaria/
+│   │   └── bachillerato/
+│   └── plataformas/            # Portales autenticados
+│       ├── admin/              # Gestión de estudiantes, profesores, cursos, materias, circulares y boletines
+│       ├── estudiantes/        # Portal del estudiante (boletines y circulares)
+│       └── profesores/         # Portal del profesor (calificaciones y planillas)
+├── components/                 # Componentes reutilizables
+├── utils/supabase/             # Clientes de Supabase (browser y server)
+└── styles/                     # Hojas de estilo SCSS por componente/página
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roles y autenticación
 
-## Deploy on Vercel
+La plataforma maneja tres roles: **administrador**, **profesor** y **estudiante**. La autenticación se realiza mediante Supabase Auth con sesiones basadas en cookies (SSR). El middleware protege las rutas `/plataformas/*` y `/impresion/*`, redirigiendo según el rol del usuario.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Funcionalidades principales
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Gestión de estudiantes y profesores:** Creación individual e importación masiva desde Excel.
+- **Boletines:** Generación e impresión de informes de desempeño por periodo para preescolar, primaria y bachillerato.
+- **Circulares:** Carga y distribución de documentos PDF por nivel.
+- **Calificaciones:** Planillas de ingreso de notas y competencias por asignatura.
+- **Cursos y materias:** Administración de la estructura académica.
