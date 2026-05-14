@@ -1,8 +1,8 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { verificarRol } from 'app/utils/supabase/auth-check'
 
-// 🛡️ FORMATEADOR INTELIGENTE DE FECHAS (Traductor de Excel)
 function formatearFecha(valor: any) {
   if (valor === undefined || valor === null || String(valor).trim() === '') {
     return null;
@@ -26,6 +26,9 @@ function formatearFecha(valor: any) {
 }
 
 export async function importarProfesoresMasivo(profesores: any[]) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, procesados: 0, creados: 0, actualizados: 0, asignaciones: 0, errores: [authError || 'No autorizado'] }
+
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

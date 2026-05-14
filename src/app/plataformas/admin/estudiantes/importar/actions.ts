@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { verificarRol } from 'app/utils/supabase/auth-check'
 
 function extraerDatosFicha(est: any) {
   const ficha: any = {}
@@ -57,6 +58,9 @@ function extraerDatosFicha(est: any) {
 }
 
 export async function importarEstudiantesMasivo(estudiantes: any[]) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, creados: 0, actualizados: 0, errores: [authError || 'No autorizado'] }
+
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

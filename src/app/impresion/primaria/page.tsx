@@ -58,6 +58,7 @@ function ContenidoBoletinPrimariaPDF() {
 
   const CURSOS_PRIMARIA = ['Emprendedores', 'Ingeniosos', 'Transformadores'];
   const [errorNivel, setErrorNivel] = useState(false);
+  const [sinPermiso, setSinPermiso] = useState(false);
 
   useEffect(() => {
     if (!estudianteId || !periodo) return
@@ -65,6 +66,13 @@ function ContenidoBoletinPrimariaPDF() {
     const cargarBoletin = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return (window.location.href = '/')
+
+      const { data: miPerfil } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      if (miPerfil?.role === 'student' && user.id !== estudianteId) {
+        setSinPermiso(true);
+        setCargando(false);
+        return;
+      }
 
       const { data: estData } = await supabase.from('profiles').select('*').eq('id', estudianteId).single()
       setEstudiante(estData)
@@ -216,6 +224,16 @@ function ContenidoBoletinPrimariaPDF() {
   `
 
   if (cargando) return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={40} color="#3b82f6" /></div>
+
+  if (sinPermiso) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
+        <h1 style={{ color: '#ef4444', fontSize: '3rem' }}>403</h1>
+        <h2>Acceso Denegado</h2>
+        <p style={{ color: '#64748b' }}>No tienes permiso para ver este boletín.</p>
+      </div>
+    );
+  }
 
   if (errorNivel) {
     return (

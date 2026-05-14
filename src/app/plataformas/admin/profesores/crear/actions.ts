@@ -1,8 +1,12 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { verificarRol } from 'app/utils/supabase/auth-check'
 
 export async function crearProfesorIndividual(datos: any) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

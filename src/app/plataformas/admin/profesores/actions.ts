@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { verificarRol } from 'app/utils/supabase/auth-check'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,6 +10,9 @@ const supabaseAdmin = createClient(
 );
 
 export async function toggleEstadoProfesor(userId: string, nuevoEstado: boolean) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
   try {
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
@@ -26,7 +30,7 @@ export async function toggleEstadoProfesor(userId: string, nuevoEstado: boolean)
         .eq('teacher_id', userId)
 
       if (deleteError) {
-        console.error("🚨 Error liberando las materias del profesor:", deleteError.message)
+        return { exito: false, error: deleteError.message }
       }
     }
 
@@ -38,12 +42,13 @@ export async function toggleEstadoProfesor(userId: string, nuevoEstado: boolean)
 }
 
 export async function cambiarContrasenaProfesor(userId: string, nuevaClave: string) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
   try {
     if (!nuevaClave || nuevaClave.length < 8) {
       return { exito: false, error: 'La contraseña debe tener al menos 8 caracteres.' }
     }
-
-    console.log(`🚨 [DEBUG] Intentando cambiar clave para el ID: ${userId}`)
 
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
@@ -57,7 +62,6 @@ export async function cambiarContrasenaProfesor(userId: string, nuevaClave: stri
     return { exito: true }
     
   } catch (err: any) {
-    console.log("💥 [DEBUG] Error general (Catch):", err.message)
     return { exito: false, error: err.message }
   }
 }

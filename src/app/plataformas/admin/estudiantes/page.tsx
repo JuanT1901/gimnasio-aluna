@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaUserPlus, FaUserGraduate, FaSpinner, FaSearch, FaEdit, FaTimes, FaSave, FaFilter, FaCheckCircle, FaAddressCard, FaFemale, FaMale, FaBus, FaChevronDown, FaChevronUp } from 'react-icons/fa'
+import { actualizarEstudiante } from './actions'
 
 export default function EstudiantesPage() {
   const [supabase] = useState(() => createBrowserClient(
@@ -71,7 +72,6 @@ export default function EstudiantesPage() {
     setErrorEdicion(null)
 
     try {
-      // 🌟 CIRUGÍA: Buscamos el ID del curso seleccionado
       let gradeIdToSave = null;
       if (estudianteEditando.course_name) {
         const cursoEncontrado = cursos.find(c => c.name === estudianteEditando.course_name);
@@ -80,55 +80,48 @@ export default function EstudiantesPage() {
         }
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: estudianteEditando.full_name,
-          doc_type: estudianteEditando.doc_type,
-          doc_number: estudianteEditando.doc_number,
-          course_name: estudianteEditando.course_name,
-          grade_id: gradeIdToSave, // 🌟 AHORA GUARDAMOS EL ID CORRECTO
-          birth_date: estudianteEditando.birth_date,
-          city: estudianteEditando.city,
-          neighborhood: estudianteEditando.neighborhood,
-          address: estudianteEditando.address,
-          doc_expedition_city: estudianteEditando.doc_expedition_city,
-          eps: estudianteEditando.eps,
-          blood_type: estudianteEditando.blood_type,
-          siblings_count: estudianteEditando.siblings_count,
-          
-          mother_name: estudianteEditando.mother_name,
-          mother_doc: estudianteEditando.mother_doc,
-          mother_profession: estudianteEditando.mother_profession,
-          mother_cellphone: estudianteEditando.mother_cellphone,
-          mother_phone: estudianteEditando.mother_phone,
-          mother_email: estudianteEditando.mother_email,
-          mother_lives_with_student: estudianteEditando.mother_lives_with_student,
-          
-          father_name: estudianteEditando.father_name,
-          father_doc: estudianteEditando.father_doc,
-          father_profession: estudianteEditando.father_profession,
-          father_cellphone: estudianteEditando.father_cellphone,
-          father_phone: estudianteEditando.father_phone,
-          father_email: estudianteEditando.father_email,
-          father_lives_with_student: estudianteEditando.father_lives_with_student,
-          
-          guardian_name: estudianteEditando.guardian_name,
-          guardian_cellphone: estudianteEditando.guardian_cellphone,
-          reference_name: estudianteEditando.reference_name,
-          reference_cellphone: estudianteEditando.reference_cellphone,
-          
-          extra_shift: estudianteEditando.extra_shift,
-          school_bus: estudianteEditando.school_bus,
-          bus_address: estudianteEditando.bus_address,
-          needs_sweatshirt: estudianteEditando.needs_sweatshirt,
-          sweatshirt_size: estudianteEditando.sweatshirt_size,
-          needs_tshirt: estudianteEditando.needs_tshirt,
-          tshirt_size: estudianteEditando.tshirt_size
-        })
-        .eq('id', estudianteEditando.id)
+      const resultado = await actualizarEstudiante(estudianteEditando.id, {
+        full_name: estudianteEditando.full_name,
+        doc_type: estudianteEditando.doc_type,
+        doc_number: estudianteEditando.doc_number,
+        course_name: estudianteEditando.course_name,
+        grade_id: gradeIdToSave,
+        birth_date: estudianteEditando.birth_date,
+        city: estudianteEditando.city,
+        neighborhood: estudianteEditando.neighborhood,
+        address: estudianteEditando.address,
+        doc_expedition_city: estudianteEditando.doc_expedition_city,
+        eps: estudianteEditando.eps,
+        blood_type: estudianteEditando.blood_type,
+        siblings_count: estudianteEditando.siblings_count,
+        mother_name: estudianteEditando.mother_name,
+        mother_doc: estudianteEditando.mother_doc,
+        mother_profession: estudianteEditando.mother_profession,
+        mother_cellphone: estudianteEditando.mother_cellphone,
+        mother_phone: estudianteEditando.mother_phone,
+        mother_email: estudianteEditando.mother_email,
+        mother_lives_with_student: estudianteEditando.mother_lives_with_student,
+        father_name: estudianteEditando.father_name,
+        father_doc: estudianteEditando.father_doc,
+        father_profession: estudianteEditando.father_profession,
+        father_cellphone: estudianteEditando.father_cellphone,
+        father_phone: estudianteEditando.father_phone,
+        father_email: estudianteEditando.father_email,
+        father_lives_with_student: estudianteEditando.father_lives_with_student,
+        guardian_name: estudianteEditando.guardian_name,
+        guardian_cellphone: estudianteEditando.guardian_cellphone,
+        reference_name: estudianteEditando.reference_name,
+        reference_cellphone: estudianteEditando.reference_cellphone,
+        extra_shift: estudianteEditando.extra_shift,
+        school_bus: estudianteEditando.school_bus,
+        bus_address: estudianteEditando.bus_address,
+        needs_sweatshirt: estudianteEditando.needs_sweatshirt,
+        sweatshirt_size: estudianteEditando.sweatshirt_size,
+        needs_tshirt: estudianteEditando.needs_tshirt,
+        tshirt_size: estudianteEditando.tshirt_size
+      })
 
-      if (error) throw error
+      if (!resultado.exito) throw new Error(resultado.error)
 
       setEstudiantes(estudiantes.map(est => est.id === estudianteEditando.id ? { ...estudianteEditando, grade_id: gradeIdToSave } : est))
       cerrarModal()
