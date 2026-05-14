@@ -15,7 +15,9 @@ export default function CrearProfesorPage() {
   const [exitoMsj, setExitoMsj] = useState(false)
 
   const [formData, setFormData] = useState({
-    username: '', full_name: '', doc_type: 'CC', doc_number: '', phone: ''
+    username: '', full_name: '', doc_type: 'CC', doc_number: '',
+    email: '', birth_date: '', address: '', phone: '',
+    compensation_fund: '', eps: '', arl: '', pension_fund: ''
   })
 
   const manejarCambio = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -69,15 +71,15 @@ export default function CrearProfesorPage() {
               <FaChalkboardTeacher color="#3b82f6" /> Datos del Docente
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
-              
+
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Nombre de Usuario (Login) *</label>
                 <input type="text" name="username" value={formData.username} onChange={manejarCambio} placeholder="Ej: jdtorres" style={inputStyle} required />
                 <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Se agregará @aluna.edu.co automáticamente</span>
               </div>
-              
+
               <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Nombre Completo *</label><input type="text" name="full_name" value={formData.full_name} onChange={manejarCambio} style={inputStyle} required /></div>
-              
+
               <div>
                 <label style={labelStyle}>Tipo de Documento *</label>
                 <select name="doc_type" value={formData.doc_type} onChange={manejarCambio} style={inputStyle}>
@@ -85,9 +87,18 @@ export default function CrearProfesorPage() {
                 </select>
               </div>
               <div><label style={labelStyle}>Número de Documento (Contraseña) *</label><input type="text" name="doc_number" value={formData.doc_number} onChange={manejarCambio} style={inputStyle} required /></div>
-              
-              <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Teléfono / Celular de Contacto</label><input type="text" name="phone" value={formData.phone} onChange={manejarCambio} style={inputStyle} /></div>
-              
+
+              <div><label style={labelStyle}>Correo Electrónico</label><input type="email" name="email" value={formData.email} onChange={manejarCambio} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Número de Celular</label><input type="text" name="phone" value={formData.phone} onChange={manejarCambio} style={inputStyle} /></div>
+
+              <div><label style={labelStyle}>Fecha de Nacimiento</label><input type="date" name="birth_date" value={formData.birth_date} onChange={manejarCambio} style={inputStyle} /></div>
+              <div style={{ gridColumn: '1 / -1' }}><label style={labelStyle}>Dirección de Residencia</label><input type="text" name="address" value={formData.address} onChange={manejarCambio} style={inputStyle} /></div>
+
+              <div><label style={labelStyle}>EPS</label><input type="text" name="eps" value={formData.eps} onChange={manejarCambio} style={inputStyle} /></div>
+              <div><label style={labelStyle}>ARL</label><input type="text" name="arl" value={formData.arl} onChange={manejarCambio} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Caja de Compensación</label><input type="text" name="compensation_fund" value={formData.compensation_fund} onChange={manejarCambio} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Fondo de Pensiones</label><input type="text" name="pension_fund" value={formData.pension_fund} onChange={manejarCambio} style={inputStyle} /></div>
+
             </div>
           </div>
 

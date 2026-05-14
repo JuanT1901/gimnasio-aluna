@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { FaFilePdf, FaEye, FaEyeSlash, FaSpinner, FaGraduationCap, FaArrowLeft, FaUsers, FaCheckDouble } from 'react-icons/fa'
+import { togglePublicacion, publicarTodosBoletines } from './actions'
 
 const CURSOS_PRIMARIA = ['Emprendedores', 'Ingeniosos', 'Transformadores'];
 const CURSOS_PREESCOLAR = ['Aventureros', 'Creativos', 'Expertos']; 
@@ -69,17 +70,10 @@ export default function AdminBoletinesPage() {
   const togglePublicacionIndividual = async (estudianteId: string) => {
     setProcesandoId(estudianteId)
     const estadoActual = estadosPublicacion[estudianteId] || false
-    
-    const { error } = await supabase
-      .from('student_report_status')
-      .upsert({ 
-        student_id: estudianteId,
-        course_name: cursoActivo!, 
-        period: parseInt(periodo), 
-        is_published: !estadoActual 
-      }, { onConflict: 'student_id, period' })
 
-    if (!error) {
+    const resultado = await togglePublicacion(estudianteId, cursoActivo!, parseInt(periodo), !estadoActual)
+
+    if (resultado.exito) {
       setEstadosPublicacion(prev => ({ ...prev, [estudianteId]: !estadoActual }))
     }
     setProcesandoId(null)
@@ -87,18 +81,10 @@ export default function AdminBoletinesPage() {
 
   const publicarTodos = async () => {
     setProcesandoLote(true)
-    const nuevosRegistros = estudiantes.map(est => ({
-      student_id: est.id,
-      course_name: cursoActivo!,
-      period: parseInt(periodo),
-      is_published: true
-    }))
 
-    const { error } = await supabase
-      .from('student_report_status')
-      .upsert(nuevosRegistros, { onConflict: 'student_id, period' })
+    const resultado = await publicarTodosBoletines(estudiantes, cursoActivo!, parseInt(periodo))
 
-    if (!error) {
+    if (resultado.exito) {
       const nuevoMapa = { ...estadosPublicacion }
       estudiantes.forEach(est => { nuevoMapa[est.id] = true })
       setEstadosPublicacion(nuevoMapa)

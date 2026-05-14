@@ -6,6 +6,7 @@ import { createClient } from 'app/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { FaTrash, FaFilePdf, FaSpinner } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
+import { eliminarCircular } from './actions'
 
 type Circular = {
   id: number
@@ -34,13 +35,11 @@ export default function CircularsList({ circulars }: { circulars: Circular[] }) 
         await supabase.storage.from('circulars').remove([fileName])
       }
 
-      const { error } = await supabase.from('circulars').delete().eq('id', id)
-
-      if (error) throw error
+      const resultado = await eliminarCircular(id)
+      if (!resultado.exito) throw new Error(resultado.error || 'Error al eliminar')
       router.refresh()
 
     } catch (error: any) {
-      console.error(error)
       alert('Error al borrar la circular: ' + error.message)
     } finally {
       setDeletingId(null)

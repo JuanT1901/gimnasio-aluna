@@ -98,11 +98,14 @@ export async function importarProfesoresMasivo(profesores: any[]) {
       // 2. Buscamos si el profesor YA existe
       const { data: perfilExistente } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('doc_number', docString)
         .maybeSingle();
 
       if (perfilExistente) {
+        if (perfilExistente.role === 'admin') {
+          throw new Error('No se puede modificar un perfil de administrador mediante importación.');
+        }
         userId = perfilExistente.id;
         
         if (Object.keys(datosRRHH).length > 0) {
@@ -187,7 +190,6 @@ export async function importarProfesoresMasivo(profesores: any[]) {
       }
 
     } catch (error: any) {
-      console.log(`🚨 ERROR CON ${filaOriginal['Nombre Completo'] || 'Desconocido'}: ${error.message}`);
       errores.push(`Error con ${filaOriginal['Nombre Completo'] || 'Desconocido'}: ${error.message}`);
     }
   }

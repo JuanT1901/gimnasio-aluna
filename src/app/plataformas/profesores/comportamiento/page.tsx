@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaArrowLeft, FaSave, FaSpinner, FaCheckCircle, FaStar, FaLightbulb, FaCheck, FaClock, FaEdit, FaTrash, FaTimes, FaCalculator } from 'react-icons/fa'
+import { guardarConvivenciaAction, eliminarConvivenciaAction } from '../actions'
 
 function ContenidoComportamiento() {
   const searchParams = useSearchParams()
@@ -135,20 +136,17 @@ function ContenidoComportamiento() {
     if (!evaluacionGuardada) return
     if (!confirm('¿Estás seguro de que deseas eliminar la evaluación de convivencia de este estudiante?')) return
 
-    const { error } = await supabase
-      .from('behavior_evaluations')
-      .delete()
-      .eq('id', evaluacionGuardada.id)
+    const resultado = await eliminarConvivenciaAction(evaluacionGuardada.id, curso!)
 
-    if (error) {
-      alert('Error al eliminar.')
+    if (!resultado.exito) {
+      alert(resultado.error || 'Error al eliminar.')
     } else {
       setEvaluacionGuardada(null)
       setModoEdicion(true)
       setCompetencia('')
       setDesempeno('')
       setNota('')
-      setEvaluacionesGlobales(prev => prev.filter(e => e.id !== evaluacionGuardada.id)) 
+      setEvaluacionesGlobales(prev => prev.filter(e => e.id !== evaluacionGuardada.id))
     }
   }
 
@@ -171,32 +169,24 @@ function ContenidoComportamiento() {
     }
 
     setGuardando(true)
-    const { data: { user } } = await supabase.auth.getUser()
     const escalaCalculada = calcularEscala(nota);
 
-    const registro = {
+    const resultado = await guardarConvivenciaAction({
       student_id: estudianteActivo.id,
-      teacher_id: user?.id,
-      course_name: curso,
+      course_name: curso!,
       period: parseInt(periodo),
       competencia: competencia,
       desempeno: desempeno,
       score: numNota,
       scale: escalaCalculada
-    }
-
-    const { data, error } = await supabase
-      .from('behavior_evaluations')
-      .upsert(registro, { onConflict: 'student_id, period' })
-      .select()
-      .single()
+    })
 
     setGuardando(false)
 
-    if (error) {
-      alert('Hubo un error al guardar la convivencia.')
+    if (!resultado.exito) {
+      alert(resultado.error || 'Hubo un error al guardar la convivencia.')
     } else {
-      setEvaluacionGuardada(data)
+      setEvaluacionGuardada(resultado.data)
       setModoEdicion(false) 
       setMensajeExito(true)
       setTimeout(() => setMensajeExito(false), 3000)

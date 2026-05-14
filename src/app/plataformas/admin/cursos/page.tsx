@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { FaUsers, FaChalkboardTeacher, FaSpinner, FaCheckCircle } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
+import { actualizarDirectorCurso } from './actions'
 
 export default function AdminCursosPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +30,7 @@ export default function AdminCursosPage() {
 
     const { data: gradosData } = await supabase
       .from('grades')
-      .select('*')
+      .select('id, name, director_id')
       .order('name', { ascending: true })
 
     if (gradosData) setCursos(gradosData)
@@ -47,22 +48,18 @@ export default function AdminCursosPage() {
 
   const actualizarDirector = async (cursoId: string, nuevoDirectorId: string) => {
     setGuardandoId(cursoId)
-    
+
     const valorFinal = nuevoDirectorId === 'null' ? null : nuevoDirectorId
 
-    const { error } = await supabase
-      .from('grades')
-      .update({ director_id: valorFinal })
-      .eq('id', cursoId)
-
+    const resultado = await actualizarDirectorCurso(cursoId, valorFinal)
     setGuardandoId(null)
 
-    if (error) {
-      alert('Error al asignar el director: ' + error.message)
+    if (!resultado.exito) {
+      alert('Error al asignar el director: ' + resultado.error)
     } else {
       setExitoId(cursoId)
       setTimeout(() => setExitoId(null), 2000)
-      
+
       setCursos(cursos.map(c => c.id === cursoId ? { ...c, director_id: valorFinal } : c))
     }
   }

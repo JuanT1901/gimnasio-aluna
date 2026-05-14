@@ -41,6 +41,87 @@ export async function toggleEstadoProfesor(userId: string, nuevoEstado: boolean)
   }
 }
 
+export async function actualizarPerfilProfesor(userId: string, datos: Record<string, any>) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const camposPermitidos = [
+    'full_name', 'doc_number', 'email', 'birth_date', 'address',
+    'phone_number', 'compensation_fund', 'eps', 'arl', 'pension_fund'
+  ];
+  const datosLimpios: Record<string, any> = {};
+  for (const campo of camposPermitidos) {
+    if (campo in datos) datosLimpios[campo] = datos[campo];
+  }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(datosLimpios)
+      .eq('id', userId)
+      .eq('role', 'teacher')
+
+    if (error) return { exito: false, error: error.message }
+    return { exito: true }
+  } catch (err: any) {
+    return { exito: false, error: err.message }
+  }
+}
+
+export async function asignarClaseProfesor(teacherId: string, gradeId: number, courseName: string, subjectName: string) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError, data: null }
+
+  try {
+    const { data: existente } = await supabaseAdmin
+      .from('teacher_assignments')
+      .select('id, teacher_id')
+      .eq('grade_id', gradeId)
+      .eq('subject_name', subjectName)
+
+    const yaTieneEsteProfe = existente?.some(a => a.teacher_id === teacherId)
+    if (yaTieneEsteProfe) return { exito: false, error: 'Este profesor ya tiene asignada esta materia en este curso.', data: null }
+
+    if (existente && existente.length > 0) {
+      const { error } = await supabaseAdmin
+        .from('teacher_assignments')
+        .update({ teacher_id: teacherId })
+        .eq('grade_id', gradeId)
+        .eq('subject_name', subjectName)
+
+      if (error) return { exito: false, error: error.message, data: null }
+      return { exito: true, reasignada: true, data: null }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('teacher_assignments')
+      .insert([{ teacher_id: teacherId, grade_id: gradeId, course_name: courseName, subject_name: subjectName }])
+      .select()
+
+    if (error) return { exito: false, error: error.message, data: null }
+    return { exito: true, data: data?.[0] || null }
+  } catch (err: any) {
+    return { exito: false, error: err.message, data: null }
+  }
+}
+
+export async function eliminarClaseProfesor(asignacionId: string) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('teacher_assignments')
+      .delete()
+      .eq('id', asignacionId)
+
+    if (error) return { exito: false, error: error.message }
+    return { exito: true }
+  } catch (err: any) {
+    return { exito: false, error: err.message }
+  }
+}
+
 export async function cambiarContrasenaProfesor(userId: string, nuevaClave: string) {
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }

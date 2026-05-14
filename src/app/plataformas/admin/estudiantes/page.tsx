@@ -35,7 +35,7 @@ export default function EstudiantesPage() {
 
   const cargarDatos = async () => {
     try {
-      const { data: estData } = await supabase.from('profiles').select('*').eq('role', 'student').order('full_name', { ascending: true })
+      const { data: estData } = await supabase.from('profiles').select('id, full_name, doc_type, doc_number, course_name, grade_id, birth_date, city, neighborhood, address, doc_expedition_city, eps, blood_type, siblings_count, mother_name, mother_doc, mother_profession, mother_cellphone, mother_phone, mother_email, mother_lives_with_student, father_name, father_doc, father_profession, father_cellphone, father_phone, father_email, father_lives_with_student, guardian_name, guardian_cellphone, reference_name, reference_cellphone, extra_shift, school_bus, bus_address, needs_sweatshirt, sweatshirt_size, needs_tshirt, tshirt_size').eq('role', 'student').order('full_name', { ascending: true })
       if (estData) setEstudiantes(estData)
 
       const { data: gradesData } = await supabase.from('grades').select('*').order('order_index', { ascending: true })

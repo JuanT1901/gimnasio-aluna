@@ -5,6 +5,15 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { FaFileDownload, FaLock } from 'react-icons/fa'
 
+const CURSOS_PREESCOLAR = ['Aventureros', 'Creativos', 'Expertos']
+const CURSOS_PRIMARIA = ['Emprendedores', 'Ingeniosos', 'Transformadores']
+
+function obtenerRutaBoletin(courseName: string) {
+  if (CURSOS_PREESCOLAR.includes(courseName)) return 'preescolar'
+  if (CURSOS_PRIMARIA.includes(courseName)) return 'primaria'
+  return 'bachillerato'
+}
+
 export default function EstudianteBoletinesPage() {
   const [estudiante, setEstudiante] = useState<any>(null)
   const [estados, setEstados] = useState<any[]>([])
@@ -20,7 +29,7 @@ export default function EstudianteBoletinesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: perfil } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const { data: perfil } = await supabase.from('profiles').select('id, full_name, course_name').eq('id', user.id).single()
       setEstudiante(perfil)
 
       if (perfil) {
@@ -58,8 +67,11 @@ export default function EstudianteBoletinesPage() {
               </div>
 
               {estaPublicado ? (
-                <button 
-                  onClick={() => alert('Generando PDF...')}
+                <button
+                  onClick={() => {
+                    const ruta = obtenerRutaBoletin(estudiante?.course_name || '')
+                    window.open(`/impresion/${ruta}?estudiante=${estudiante?.id}&periodo=${p}`, '_blank')
+                  }}
                   style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '12px 25px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
                 >
                   <FaFileDownload /> Descargar

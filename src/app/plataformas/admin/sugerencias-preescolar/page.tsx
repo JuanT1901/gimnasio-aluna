@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { FaSpinner, FaSave, FaCheckCircle, FaSeedling } from 'react-icons/fa'
+import { guardarSugerenciasPreescolar } from './actions'
 
 export default function SugerenciasPreescolarPage() {
   const [curso, setCurso] = useState('Aventureros')
@@ -64,7 +65,7 @@ export default function SugerenciasPreescolarPage() {
 
   const guardarSugerencias = async () => {
     setGuardando(true)
-    
+
     const registros = dimensiones.map(dim => ({
       course_name: curso,
       dimension: dim.name,
@@ -72,13 +73,10 @@ export default function SugerenciasPreescolarPage() {
       suggestion_text: sugerencias[dim.name] || ''
     }))
 
-    const { error } = await supabase
-      .from('preschool_suggestions')
-      .upsert(registros, { onConflict: 'course_name, dimension, period' })
-
+    const resultado = await guardarSugerenciasPreescolar(registros)
     setGuardando(false)
 
-    if (!error) {
+    if (resultado.exito) {
       setMensajeExito(true)
       setTimeout(() => setMensajeExito(false), 3000)
     } else {

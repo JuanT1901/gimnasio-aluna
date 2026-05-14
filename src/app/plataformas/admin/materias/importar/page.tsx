@@ -32,8 +32,7 @@ export default function ImportarMallaCurricularPage() {
         setCargando(false)
       }
       reader.readAsArrayBuffer(archivo)
-    } catch (error) {
-      console.error(error)
+    } catch {
       alert('Hubo un error al leer el archivo.')
       setCargando(false)
     }

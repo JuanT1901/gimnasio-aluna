@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  FaSignOutAlt, FaUserGraduate, FaChalkboardTeacher, 
-  FaHome, FaChevronDown, FaChevronUp, FaUserPlus, 
+import {
+  FaSignOutAlt, FaUserGraduate, FaChalkboardTeacher,
+  FaHome, FaChevronDown, FaChevronUp, FaUserPlus,
   FaUpload, FaList, FaBullhorn, FaUsersCog, FaFileSignature,
-  FaCommentDots
+  FaCommentDots, FaBook
 } from 'react-icons/fa'
 
 export default function AdminSidebar() {
@@ -23,9 +23,9 @@ export default function AdminSidebar() {
   const [menuAbierto, setMenuAbierto] = useState<string>('')
 
   useEffect(() => {
-    if (pathname?.includes('/estudiantes')) {
+    if (pathname?.includes('/estudiantes') || pathname?.includes('/boletines') || pathname?.includes('/sugerencias-preescolar')) {
       setMenuAbierto('estudiantes')
-    } else if (pathname?.includes('/profesores')) {
+    } else if (pathname?.includes('/profesores') || pathname?.includes('/materias') || pathname?.includes('/cursos')) {
       setMenuAbierto('profesores')
     }
   }, [pathname])
@@ -103,13 +103,15 @@ export default function AdminSidebar() {
             <Link href="/plataformas/admin/profesores" style={{...linkStyle, color: pathname === '/plataformas/admin/profesores' ? '#38bdf8' : '#cbd5e1'}}><FaList /> Gestión Docente</Link>
             <Link href="/plataformas/admin/profesores/crear" style={{...linkStyle, color: pathname === '/plataformas/admin/profesores/crear' ? '#38bdf8' : '#cbd5e1'}}><FaUserPlus /> Contratar Manual</Link>
             <Link href="/plataformas/admin/profesores/importar" style={{...linkStyle, color: pathname === '/plataformas/admin/profesores/importar' ? '#38bdf8' : '#cbd5e1'}}><FaUpload /> Subir Matriz Académica</Link>
-            <Link href="/plataformas/admin/cursos" style={{...linkStyle, color: pathname === '/plataformas/admin/cursos' ? '#38bdf8' : '#cbd5e1'}}><FaUsersCog /> Directores de curso</Link>
+            <Link href="/plataformas/admin/materias" style={{...linkStyle, color: pathname?.includes('/materias') ? '#38bdf8' : '#cbd5e1'}}><FaBook /> Malla Curricular</Link>
+            <Link href="/plataformas/admin/cursos" style={{...linkStyle, color: pathname === '/plataformas/admin/cursos' ? '#38bdf8' : '#cbd5e1'}}><FaUsersCog /> Directores de Curso</Link>
           </div>
         </div>
 
         <div>
           <Link href="/plataformas/admin/circulares" style={{...btnStyle, justifyContent: 'flex-start', gap: '10px', backgroundColor: pathname?.includes('/circulares') ? 'rgba(56, 189, 248, 0.1)' : 'transparent', color: pathname?.includes('/circulares') ? '#38bdf8' : '#f8fafc', marginTop: '10px'}}><FaBullhorn /> Gestión de Circulares</Link>
         </div>
+
 
       </nav>
 

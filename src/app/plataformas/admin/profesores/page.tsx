@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
-import { cambiarContrasenaProfesor, toggleEstadoProfesor } from './actions'
+import { cambiarContrasenaProfesor, toggleEstadoProfesor, actualizarPerfilProfesor, asignarClaseProfesor, eliminarClaseProfesor } from './actions'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaChalkboardTeacher, FaBook, FaSpinner, 
          FaUpload, FaArrowLeft, FaEdit, FaList, 
@@ -77,7 +77,7 @@ export default function AdminProfesoresPage() {
     setCargando(true)
     const { data: profes } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, full_name, doc_number, email, birth_date, address, phone_number, compensation_fund, eps, arl, pension_fund, is_active')
       .eq('role', 'teacher')
       .order('full_name', { ascending: true })
 
@@ -146,85 +146,29 @@ export default function AdminProfesoresPage() {
       return;
     }
 
-    const { data: asignacionesExistentes, error: checkError } = await supabase
-      .from('teacher_assignments')
-      .select('id, teacher_id, profiles(full_name)')
-      .eq('grade_id', cursoObj.id)
-      .eq('subject_name', materiaSeleccionada)
+    const resultado = await asignarClaseProfesor(profeActivo.id, cursoObj.id, cursoObj.name, materiaSeleccionada)
 
-    if (checkError) {
-      alert('Error al verificar la base de datos: ' + checkError.message);
-      setGuardando(false);
-      return;
+    if (!resultado.exito) {
+      alert(resultado.error || 'Error al asignar la clase.')
+    } else if (resultado.reasignada) {
+      alert('✅ Materia reasignada con éxito.')
+      cargarClasesYCursos()
+    } else if (resultado.data) {
+      setClasesProfe([...clasesProfe, resultado.data])
     }
 
-    const hayAsignaciones = asignacionesExistentes && asignacionesExistentes.length > 0;
-    
-    const laTieneEsteProfe = hayAsignaciones && asignacionesExistentes.some(a => a.teacher_id === profeActivo.id);
-    
-    if (laTieneEsteProfe) {
-      alert('Este profesor ya tiene asignada esta materia en este curso.');
-      setGuardando(false);
-      return;
-    }
-
-    if (hayAsignaciones) {
-      // @ts-expect-error
-      const profeActual = asignacionesExistentes[0].profiles?.full_name || 'otro profesor';
-      
-      const confirmar = confirm(
-        `⚠️ ATENCIÓN: La materia "${materiaSeleccionada}" ya está asignada al profesor(a) ${profeActual} en este curso.\n\n¿Deseas quitarle la materia a ${profeActual} y reasignársela a ${profeActivo.full_name}?`
-      );
-
-      if (!confirmar) {
-        setGuardando(false);
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('teacher_assignments')
-        .update({ teacher_id: profeActivo.id })
-        .eq('grade_id', cursoObj.id)
-        .eq('subject_name', materiaSeleccionada)
-
-      if (updateError) {
-        alert('Error al reasignar: ' + updateError.message)
-      } else {
-        alert('✅ Materia reasignada con éxito.')
-        cargarClasesYCursos()
-      }
-      setGuardando(false);
-      return;
-    }
-
-    const nuevaAsignacion = {
-      teacher_id: profeActivo.id, 
-      grade_id: cursoObj.id, 
-      course_name: cursoObj.name, 
-      subject_name: materiaSeleccionada 
-    }
-
-    const { data, error } = await supabase.from('teacher_assignments').insert([nuevaAsignacion]).select()
-    
-    if (error) {
-      alert('Error al asignar la clase: ' + error.message)
-    } else if (data) { 
-      setClasesProfe([...clasesProfe, data[0]]); 
-    }
-    
     setGuardando(false)
   }
 
   const eliminarClase = async (idAsignacion: string) => {
     if (!confirm('¿Estás seguro de quitar esta clase?')) return
 
-    const { error } = await supabase
-      .from('teacher_assignments')
-      .delete()
-      .eq('id', idAsignacion)
+    const resultado = await eliminarClaseProfesor(idAsignacion)
 
-    if (!error) {
+    if (resultado.exito) {
       setClasesProfe(clasesProfe.filter(c => c.id !== idAsignacion))
+    } else {
+      alert('Error al eliminar la clase: ' + resultado.error)
     }
   }
 
@@ -252,15 +196,11 @@ export default function AdminProfesoresPage() {
 
   const guardarPerfil = async () => {
     setGuardando(true)
-    const { error } = await supabase
-      .from('profiles')
-      .update(editData)
-      .eq('id', profeActivo.id)
-
+    const resultado = await actualizarPerfilProfesor(profeActivo.id, editData)
     setGuardando(false)
 
-    if (error) {
-      alert('Error al actualizar el perfil: ' + error.message)
+    if (!resultado.exito) {
+      alert('Error al actualizar el perfil: ' + resultado.error)
     } else {
       alert('¡Perfil actualizado con éxito!')
       setVista('lista')

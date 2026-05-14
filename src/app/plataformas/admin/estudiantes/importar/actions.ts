@@ -95,11 +95,14 @@ export async function importarEstudiantesMasivo(estudiantes: any[]) {
 
       const { data: perfilExistente } = await supabaseAdmin
         .from('profiles')
-        .select('id, grade_id') 
+        .select('id, grade_id, role')
         .eq('doc_number', docString)
         .single();
 
       if (perfilExistente) {
+        if (perfilExistente.role === 'admin') {
+          throw new Error('No se puede modificar un perfil de administrador mediante importación.');
+        }
         userId = perfilExistente.id;
         const datosActualizar = extraerDatosFicha(est);
         

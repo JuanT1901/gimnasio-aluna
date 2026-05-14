@@ -6,6 +6,7 @@ import { createClient } from 'app/utils/supabase/client'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaUpload, FaSpinner } from 'react-icons/fa'
 import { useRouter } from 'next/navigation'
+import { crearCircular } from './actions'
 
 type Grade = { id: number; name: string; level: string }
 
@@ -45,16 +46,14 @@ export default function UploadForm({ grades }: { grades: Grade[] }) {
         .from('circulars')
         .getPublicUrl(fileName)
 
-      const { error: dbError } = await supabase
-        .from('circulars')
-        .insert({
-          title: title,
-          pdf_url: publicUrl,
-          type: type,
-          grade_id: type === 'curso' ? Number(gradeId) : null
-        })
+      const resultado = await crearCircular({
+        title: title,
+        pdf_url: publicUrl,
+        type: type,
+        grade_id: type === 'curso' ? Number(gradeId) : null
+      })
 
-      if (dbError) throw dbError
+      if (!resultado.exito) throw new Error(resultado.error)
 
       setMessage({ text: '¡Circular subida y publicada exitosamente!', isError: false })
       setTitle('')
@@ -64,7 +63,6 @@ export default function UploadForm({ grades }: { grades: Grade[] }) {
       router.refresh()
 
     } catch (error: any) {
-      console.error(error)
       setMessage({ text: `Error al subir: ${error.message}`, isError: true })
     } finally {
       setLoading(false)

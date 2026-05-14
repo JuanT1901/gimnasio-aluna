@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaArrowLeft, FaSave, FaPlus, FaTrash, FaSpinner, FaCheckCircle, FaUserEdit, FaBook, FaSeedling, FaChartLine, FaTrophy, FaLightbulb, FaEdit, FaTimes, FaCheck, FaClock } from 'react-icons/fa'
+import { guardarEvaluacionPreescolar } from '../actions'
 
 const obtenerInfoEscala = (notaStr: string | number) => {
   const nota = parseFloat(notaStr.toString())
@@ -81,8 +82,8 @@ function ContenidoPlanillaPreescolar() {
           const evaluadosValidos = evalGlobal.filter(e => e.competencies_data && e.competencies_data.length > 0)
           setEvaluacionesGlobales(evaluadosValidos)
         }
-      } catch (error) {
-        console.error('Error cargando iniciales:', error)
+      } catch {
+        // error silencioso
       } finally {
         setCargandoLista(false)
       }
@@ -105,18 +106,15 @@ function ContenidoPlanillaPreescolar() {
         .eq('period', parseInt(periodo))
 
       if (evaluacionesCurso && evaluacionesCurso.length > 0) {
-        const bancoUnico = new Map()
+        const bancoUnico = new Set<string>()
         evaluacionesCurso.forEach(evaluacion => {
           if (evaluacion.competencies_data) {
             evaluacion.competencies_data.forEach((comp: any) => {
-              if (!bancoUnico.has(comp.competencia)) {
-                bancoUnico.set(comp.competencia, comp.desempeno)
-              }
+              bancoUnico.add(comp.competencia)
             })
           }
         })
-        const bancoArray = Array.from(bancoUnico, ([competencia, desempeno]) => ({ competencia, desempeno }))
-        setBancoCompetencias(bancoArray)
+        setBancoCompetencias(Array.from(bancoUnico).map(competencia => ({ competencia })))
       } else {
         setBancoCompetencias([])
       }
@@ -160,13 +158,11 @@ function ContenidoPlanillaPreescolar() {
   }
 
   const seleccionarDelBanco = (indexBco: number) => {
-    if (indexBco === -1) return 
+    if (indexBco === -1) return
     const seleccion = bancoCompetencias[indexBco]
     setTempCompetencia(seleccion.competencia)
-    setTempDesempeno(seleccion.desempeno)
     setTimeout(() => {
       autoResize(compRef.current)
-      autoResize(desRef.current)
     }, 50)
   }
 
@@ -219,26 +215,19 @@ function ContenidoPlanillaPreescolar() {
     if (!estudianteActivo) return
 
     setGuardando(true)
-    const { data: { user } } = await supabase.auth.getUser()
 
-    const registro = {
+    const resultado = await guardarEvaluacionPreescolar({
       student_id: estudianteActivo.id,
-      teacher_id: user?.id,
-      course_name: curso,
+      course_name: curso!,
       period: parseInt(periodo),
-      dimension: materia,
+      dimension: materia!,
       competencies_data: competencias
-    }
-
-    const { error } = await supabase
-      .from('preschool_evaluations')
-      .upsert(registro, { onConflict: 'student_id, period, dimension' })
+    })
 
     setGuardando(false)
 
-    if (error) {
-      console.error(error)
-      alert('Hubo un error al guardar.')
+    if (!resultado.exito) {
+      alert(resultado.error || 'Hubo un error al guardar.')
     } else {
       setMensajeExito(true)
       setTimeout(() => setMensajeExito(false), 3000)

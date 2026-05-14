@@ -34,11 +34,18 @@ export async function crearProfesorIndividual(datos: any) {
       .from('profiles')
       .upsert({
         id: userId,
-        role: 'teacher', 
+        role: 'teacher',
         full_name: datos.full_name,
         doc_type: datos.doc_type,
         doc_number: datos.doc_number,
-        mother_cellphone: datos.phone
+        phone_number: datos.phone,
+        email: datos.email || null,
+        birth_date: datos.birth_date || null,
+        address: datos.address || null,
+        compensation_fund: datos.compensation_fund || null,
+        eps: datos.eps || null,
+        arl: datos.arl || null,
+        pension_fund: datos.pension_fund || null
       });
 
     if (profileError) {

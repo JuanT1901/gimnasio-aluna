@@ -42,6 +42,13 @@ export default function Sidebar() {
         </Link>
         */}
 
+        <Link
+          href="/plataformas/estudiantes/boletines"
+          className={isActive('/plataformas/estudiantes/boletines')}
+        >
+          <FaFileSignature /> Mis Boletines
+        </Link>
+
         <details className={styles.detailsMenu} open={isCircularActive}>
           <summary className={`${styles.summary} ${isCircularActive ? styles.activeSummary : ''}`}>
             <div className={styles.summaryContent}>
@@ -49,28 +56,21 @@ export default function Sidebar() {
             </div>
             <FaChevronDown className={styles.chevron} />
           </summary>
-          
+
           <div className={styles.submenu}>
-            <Link 
+            <Link
               href="/plataformas/estudiantes/circulares/general"
               className={isActive('/plataformas/estudiantes/circulares/general')}
             >
               <FaGlobe /> Generales
             </Link>
-            <Link 
+            <Link
               href="/plataformas/estudiantes/circulares/curso"
               className={isActive('/plataformas/estudiantes/circulares/curso')}
             >
               <FaUsers /> De mi Curso
             </Link>
           </div>
-
-          <li className={styles.active}>
-          <Link href="/plataformas/estudiantes/boletines">
-            <FaFileSignature /> Mis Boletines
-          </Link>
-        </li>
-
         </details>
 
       </nav>

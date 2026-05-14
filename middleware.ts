@@ -34,17 +34,9 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = path.startsWith('/plataformas') || 
                            path.startsWith('/impresion')
 
-  const isAuthRoute = path === '/';
-
   if ((!user || error) && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
-
-  if (user && isAuthRoute) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/plataformas' // Cámbialo si tu dashboard principal tiene otra ruta
     return NextResponse.redirect(url)
   }
 

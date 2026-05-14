@@ -74,7 +74,7 @@ function ContenidoBoletinBachilleratoPDF() {
         return;
       }
 
-      const { data: estData } = await supabase.from('profiles').select('*').eq('id', estudianteId).single()
+      const { data: estData } = await supabase.from('profiles').select('id, full_name, course_name').eq('id', estudianteId).single()
       setEstudiante(estData)
 
       if (estData) {
