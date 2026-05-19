@@ -22,20 +22,29 @@ async function verificarProfesorYAsignacion(curso: string, materia?: string) {
     return { autorizado: true, userId: user.id }
   }
 
-  let query = supabase
-    .from('teacher_assignments')
-    .select('id')
-    .eq('teacher_id', user.id)
-    .eq('course_name', curso)
-
   if (materia) {
-    query = query.eq('subject_name', materia)
-  }
+    const { data: asignacion } = await supabase
+      .from('teacher_assignments')
+      .select('id')
+      .eq('teacher_id', user.id)
+      .eq('course_name', curso)
+      .eq('subject_name', materia)
+      .maybeSingle()
 
-  const { data: asignacion } = await query.maybeSingle()
+    if (!asignacion) {
+      return { autorizado: false, error: 'No tienes asignación para este curso/materia', userId: '' }
+    }
+  } else {
+    const { data: cursoDirector } = await supabase
+      .from('grades')
+      .select('id')
+      .eq('name', curso)
+      .eq('director_id', user.id)
+      .maybeSingle()
 
-  if (!asignacion) {
-    return { autorizado: false, error: 'No tienes asignación para este curso/materia', userId: '' }
+    if (!cursoDirector) {
+      return { autorizado: false, error: 'No eres director de grupo de este curso', userId: '' }
+    }
   }
 
   return { autorizado: true, userId: user.id }
