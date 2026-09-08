@@ -130,21 +130,11 @@ function ContenidoBoletinPrimariaPDF() {
           .maybeSingle()
 
         if (compData) {
-          const scoreComp = parseFloat(compData.score || compData.grade || 0)
-          let escalaComp = 'Bajo'
-          if (!isNaN(scoreComp)) {
-            if (scoreComp >= 4.5) escalaComp = 'Superior'
-            else if (scoreComp >= 4.0) escalaComp = 'Alto'
-            else if (scoreComp >= 3.5) escalaComp = 'Básico'
-          }
           evaluacionesCrudas.push({
             subject_name: 'Convivencia',
             competencies_data: [
               {
-                competencia: compData.competencia || 'Convivencia escolar',
-                desempeno: compData.desempeno || compData.observations || 'Sin observación.',
-                nota: scoreComp,
-                escala: escalaComp
+                desempeno: compData.desempeno || compData.observations || 'Sin observación.'
               }
             ]
           });
@@ -386,6 +376,14 @@ function ContenidoBoletinPrimariaPDF() {
                           const notaNum = parseFloat(c.nota || c.Nota || c.score || c.calificacion || 0);
                           const textoEscala = c.escala || c.Escala || c.scale || "";
 
+                          if (esComportamiento) {
+                            return (
+                              <tr key={`${idxAsig}-${idxC}`} className="salto-pagina">
+                                <td colSpan={3} className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoDesempeno}</td>
+                              </tr>
+                            )
+                          }
+
                           return (
                             <tr key={`${idxAsig}-${idxC}`} className="salto-pagina">
                               <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{textoCompetencia.toUpperCase()}</td>
@@ -393,10 +391,8 @@ function ContenidoBoletinPrimariaPDF() {
                               <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
                                 <div style={{ display: 'flex', height: '100%' }}>
                                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>
-                                    {!esComportamiento && (
-                                      <strong style={{ fontSize: '1.1rem' }}>{notaNum.toFixed(1)}</strong>
-                                    )}
-                                    <span style={{ fontSize: '0.65rem', textAlign: 'center', fontWeight: esComportamiento ? 'bold' : 'normal', lineHeight: '1.1' }}>{textoEscala}</span>
+                                    <strong style={{ fontSize: '1.1rem' }}>{notaNum.toFixed(1)}</strong>
+                                    <span style={{ fontSize: '0.65rem', textAlign: 'center', lineHeight: '1.1' }}>{textoEscala}</span>
                                   </div>
                                   <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                     {obtenerIconoEscala(textoEscala)}

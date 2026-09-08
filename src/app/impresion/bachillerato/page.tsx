@@ -137,9 +137,7 @@ function ContenidoBoletinBachilleratoPDF() {
             subject_name: 'Convivencia',
             competencies_data: [
               {
-                competencia: compData.competencia || 'Convivencia escolar',
-                desempeno: compData.desempeno || compData.observations || 'Sin observación.',
-                nota: compData.score || compData.grade || 0
+                desempeno: compData.desempeno || compData.observations || 'Sin observación.'
               }
             ]
           });
@@ -343,10 +341,18 @@ function ContenidoBoletinBachilleratoPDF() {
                     {asignatura.competencias.length > 0 ? (
                       asignatura.competencias.map((c: any, idxC: number) => (
                         <tr key={idxC} className="salto-pagina">
-                          <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
-                            {(c.competencia || c.Competencia || "-").toUpperCase()}
-                          </td>
-                          <td colSpan={3}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
+                          {esComportamiento ? (
+                            <td colSpan={4} style={{ textAlign: 'justify', padding: '10px 12px' }}>
+                              {c.desempeno || c.Desempeno || c.desempeño || "-"}
+                            </td>
+                          ) : (
+                            <>
+                              <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
+                                {(c.competencia || c.Competencia || "-").toUpperCase()}
+                              </td>
+                              <td colSpan={3}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
+                            </>
+                          )}
                         </tr>
                       ))
                     ) : (
@@ -358,19 +364,19 @@ function ContenidoBoletinBachilleratoPDF() {
                     )}
 
                     {/* 🌟 LAS 3 CELDAS DE VALORACIÓN PERFECTAMENTE ALINEADAS */}
-                    <tr className="salto-pagina nota-final-row">
-                      <td colSpan={esComportamiento ? 3 : 2} className="label-final">
-                        VALORACIÓN FINAL DE {asignatura.nombre}:
-                      </td>
-                      {!esComportamiento && (
+                    {!esComportamiento && (
+                      <tr className="salto-pagina nota-final-row">
+                        <td colSpan={2} className="label-final">
+                          VALORACIÓN FINAL DE {asignatura.nombre}:
+                        </td>
                         <td className="valor-final">
                           {asignatura.promedio > 0 ? asignatura.promedio.toFixed(1) : '-'}
                         </td>
-                      )}
-                      <td className="icono-final">
-                        {obtenerIconoBachillerato(asignatura.promedio)}
-                      </td>
-                    </tr>
+                        <td className="icono-final">
+                          {obtenerIconoBachillerato(asignatura.promedio)}
+                        </td>
+                      </tr>
+                    )}
                   </Fragment>
                   )
                 })}

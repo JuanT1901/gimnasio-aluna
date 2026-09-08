@@ -92,10 +92,7 @@ function ContenidoBoletinPreescolarPDF() {
             dimension: 'Comportamiento',
             competencies_data: [
               {
-                competencia: compData.competencia || 'Convivencia escolar',
-                desempeno: compData.desempeno || compData.observations || 'Sin observación.',
-                nota: compData.score || compData.grade || 0,
-                escala: compData.scale || 'Básico'
+                desempeno: compData.desempeno || compData.observations || 'Sin observación.'
               }
             ]
           });
@@ -284,6 +281,7 @@ function ContenidoBoletinPreescolarPDF() {
             {evaluacionesAgrupadas.map((bloque, idxB) => {
               const comps = bloque.competencias;
               const baseName = bloque.dimension.split('(')[0].trim();
+              const esComportamiento = normalizar(bloque.dimension) === 'comportamiento';
 
               const esUltimoDelGrupo = !evaluacionesAgrupadas.slice(idxB + 1).some(
                 b => b.dimension.split('(')[0].trim() === baseName
@@ -318,18 +316,24 @@ function ContenidoBoletinPreescolarPDF() {
                         }}>
                           {isFirst ? bloque.dimension : ''}
                         </td>
-                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{(c.competencia || "-").toUpperCase()}</td>
-                        <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno}</td>
-                        <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
-                          <div style={{ display: 'flex', height: '100%' }}>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>
-                              <span style={{ fontSize: '0.65rem', textAlign: 'center', fontWeight: 'bold', lineHeight: '1.1' }}>{c.escala}</span>
-                            </div>
-                            <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                              {obtenerIconoEscala(parseFloat(c.nota || 0))}
-                            </div>
-                          </div>
-                        </td>
+                        {esComportamiento ? (
+                          <td colSpan={3} className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno}</td>
+                        ) : (
+                          <>
+                            <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{(c.competencia || "-").toUpperCase()}</td>
+                            <td className="td-bordeado" style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno}</td>
+                            <td className="td-bordeado" style={{ padding: 0, height: '1px' }}>
+                              <div style={{ display: 'flex', height: '100%' }}>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', borderRight: '1px solid #1e293b', padding: '5px' }}>
+                                  <span style={{ fontSize: '0.65rem', textAlign: 'center', fontWeight: 'bold', lineHeight: '1.1' }}>{c.escala}</span>
+                                </div>
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                  {obtenerIconoEscala(parseFloat(c.nota || 0))}
+                                </div>
+                              </div>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     )
                   })}

@@ -121,7 +121,7 @@ export async function guardarEvaluacionPreescolar(datos: {
 
 export async function guardarConvivenciaAction(datos: {
   student_id: string, course_name: string, period: number,
-  competencia: string, desempeno: string, score: number, scale: string
+  desempeno: string
 }) {
   const { autorizado, error: authError, userId } = await verificarProfesorYAsignacion(datos.course_name)
   if (!autorizado) return { exito: false, error: authError, data: null }
@@ -134,10 +134,7 @@ export async function guardarConvivenciaAction(datos: {
       teacher_id: userId,
       course_name: datos.course_name,
       period: datos.period,
-      competencia: datos.competencia,
-      desempeno: datos.desempeno,
-      score: datos.score,
-      scale: datos.scale
+      desempeno: datos.desempeno
     }, { onConflict: 'student_id, period' })
     .select()
     .single()
