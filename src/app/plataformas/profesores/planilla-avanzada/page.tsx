@@ -12,10 +12,10 @@ import { guardarEvaluacionAvanzada } from '../actions'
 
 const obtenerEstiloAvanzado = (notaStr: string | number) => {
   const nota = parseFloat(notaStr.toString())
-  if (isNaN(nota) || nota < 1.0 || nota > 5.0) {
+  if (isNaN(nota) || nota < 0 || nota > 5.0) {
     return { bg: '#f1f5f9', rotate: 0, show: false }
   }
-  if (nota >= 1.0 && nota <= 3.4) {
+  if (nota <= 3.4) {
     return { bg: '#ef4444', rotate: 90, show: true } 
   }
   if (nota >= 3.5 && nota <= 3.9) {
@@ -194,7 +194,7 @@ function ContenidoPlanillaAvanzada() {
   const guardarCompetenciaLocal = () => {
     const notaNum = parseFloat(tempNota)
     if (!tempCompetencia || !tempDesempeno) return alert('Debes llenar la competencia y el desempeño.')
-    if (isNaN(notaNum) || notaNum < 1.0 || notaNum > 5.0) return alert('La nota debe ser un número entre 1.0 y 5.0')
+    if (isNaN(notaNum) || notaNum < 0 || notaNum > 5.0) return alert('La nota debe ser un número entre 0.0 y 5.0')
 
     // Solo guardamos la nota pura, el estilo se calcula al vuelo
     const nueva = { competencia: tempCompetencia, desempeno: tempDesempeno, nota: notaNum }
@@ -369,10 +369,10 @@ function ContenidoPlanillaAvanzada() {
 
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '15px', flexWrap: 'wrap' }}>
                   <div style={{ flex: '0 1 120px' }}>
-                    <label style={{ display: 'block', fontSize: '0.9rem', color: '#64748b', marginBottom: '5px' }}>Nota (1.0 - 5.0):</label>
-                    <input 
-                      type="number" 
-                      min="1.0" max="5.0" step="0.1"
+                    <label style={{ display: 'block', fontSize: '0.9rem', color: '#64748b', marginBottom: '5px' }}>Nota (0.0 - 5.0):</label>
+                    <input
+                      type="number"
+                      min="0" max="5.0" step="0.1"
                       value={tempNota} onChange={(e) => setTempNota(e.target.value)}
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '2px solid #3b82f6', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', backgroundColor: 'white' }}
                     />

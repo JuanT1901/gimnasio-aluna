@@ -159,14 +159,14 @@ function ContenidoBoletinBachilleratoPDF() {
             try { comps = JSON.parse(actual.competencies_data); } catch { comps = []; }
           }
 
-          // CÁLCULO DEL PROMEDIO
+          // CÁLCULO DEL PROMEDIO (la escala va de 0.0 a 5.0, así que un 0 sí cuenta)
           let suma = 0;
           let validas = 0;
           comps.forEach((c: any) => {
-            const n = parseFloat(c.nota || c.Nota || 0);
-            if (n > 0) { suma += n; validas++; }
+            const n = parseFloat(c.nota ?? c.Nota);
+            if (!isNaN(n)) { suma += n; validas++; }
           });
-          const promedio = validas > 0 ? Math.round((suma / validas) * 10) / 10 : 0;
+          const promedio = validas > 0 ? Math.round((suma / validas) * 10) / 10 : null;
 
           areaExistente.asignaturas.push({
             nombre: actual.subject_name,
@@ -208,8 +208,8 @@ function ContenidoBoletinBachilleratoPDF() {
     cargarBoletin()
   }, [estudianteId, periodo, supabase])
 
-  const obtenerIconoBachillerato = (nota: number) => {
-    if (nota === 0) return null;
+  const obtenerIconoBachillerato = (nota: number | null) => {
+    if (nota === null || isNaN(nota)) return null;
     if (nota >= 4.5) return <FaThumbsUp size={22} color="#eab308" />;
     if (nota >= 4.0) return <FaThumbsUp size={22} color="#3b82f6" />;
     if (nota >= 3.5) return <FaThumbsUp size={22} color="#22c55e" style={{ transform: 'rotate(30deg)' }} />;
@@ -370,7 +370,7 @@ function ContenidoBoletinBachilleratoPDF() {
                           VALORACIÓN FINAL DE {asignatura.nombre}:
                         </td>
                         <td className="valor-final">
-                          {asignatura.promedio > 0 ? asignatura.promedio.toFixed(1) : '-'}
+                          {asignatura.promedio !== null ? asignatura.promedio.toFixed(1) : '-'}
                         </td>
                         <td className="icono-final">
                           {obtenerIconoBachillerato(asignatura.promedio)}
@@ -415,7 +415,7 @@ function ContenidoBoletinBachilleratoPDF() {
               <FaThumbsUp size={22} color="#ef4444" style={{ transform: 'rotate(90deg)' }} />
               <div>
                 <strong>Bajo</strong>
-                <div style={{ color: '#475569' }}>1.0 – 3.4</div>
+                <div style={{ color: '#475569' }}>0.0 – 3.4</div>
               </div>
             </div>
           </div>
