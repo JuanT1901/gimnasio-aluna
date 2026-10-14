@@ -84,7 +84,8 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
   return (
     <div className={c.paperWrap}>
       <div className={`${c.paper} ${muchasFilas ? c.paperTall : ''}`}>
-        <div className={c.bg2} /><div className={c.bg1} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={c.marcaAgua} src="/marca-agua-certificados.jpg" alt="" />
         <div className={c.inner}>
           <div className={c.pHead}>
             {/* eslint-disable-next-line @next/next/no-img-element */}

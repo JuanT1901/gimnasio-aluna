@@ -233,13 +233,13 @@ async function armarPdf(admin: Admin, id: number, campos: CamposCertificado, not
   if (!r) throw new Error('La solicitud no existe.')
   const colegio = await cargarColegio(admin)
   const c = limpiarCampos(campos)
-  const [firma, logoAluna, logoLudo] = await Promise.all([
-    descargarArchivo(admin, colegio.signaturePath), leerImagenPublica('logo.jpeg'), leerImagenPublica('logo-ludo.png'),
+  const [firma, logoAluna, logoLudo, marcaAgua] = await Promise.all([
+    descargarArchivo(admin, colegio.signaturePath), leerImagenPublica('logo.jpeg'), leerImagenPublica('logo-ludo.png'), leerImagenPublica('marca-agua-certificados.jpg'),
   ])
   const formato = FORMATOS.includes(formatoPedido) ? formatoPedido : formatoDeCurso(null, c.nivel)
   const pdf = await generarPdfCertificado({
     colegio, tipo: r.type_code, campos: c, formato, notas: r.type_code === 'notas' ? limpiarNotas(notas) : null,
-    codigo: r.code, verificacion, firma, logoAluna, logoLudo,
+    codigo: r.code, verificacion, firma, logoAluna, logoLudo, marcaAgua,
   })
   return { pdf, code: r.code as string, tipo: r.type_code as TipoCertificado, firma: !!firma }
 }

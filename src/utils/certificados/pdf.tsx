@@ -12,8 +12,8 @@ const TINTA = '#2b2b2b'
 
 const s = StyleSheet.create({
   page: { paddingTop: 36, paddingBottom: 40, paddingHorizontal: 62, fontFamily: 'Helvetica', fontSize: 11.5, color: TINTA, position: 'relative' },
-  fondoGris: { position: 'absolute', left: 90, top: 178, width: 470, height: 470, backgroundColor: '#e5e7eb', transform: 'rotate(-3deg)' },
-  fondoBeige: { position: 'absolute', left: 64, top: 166, width: 460, height: 470, backgroundColor: '#fdf3dc', transform: 'rotate(-3deg)' },
+  // Marca de agua: la imagen mide 1561 × 1600 px
+  marcaAgua: { position: 'absolute', left: 64, top: 160, width: 496, height: 508 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   aluna: { width: 118, alignItems: 'center' },
   gimnasio: { fontSize: 8, color: MORADO, marginTop: 2, letterSpacing: 1 },
@@ -109,6 +109,7 @@ export type DatosPdf = {
   firma: Buffer | null
   logoAluna: Buffer | null
   logoLudo: Buffer | null
+  marcaAgua: Buffer | null
 }
 
 export async function generarPdfCertificado(d: DatosPdf): Promise<Buffer> {
@@ -119,8 +120,7 @@ export async function generarPdfCertificado(d: DatosPdf): Promise<Buffer> {
   const documento = (
     <Document title={`Certificado ${d.codigo}`} author={c.institutionName} language="es">
       <Page size="LETTER" style={s.page}>
-        <View style={s.fondoGris} fixed />
-        <View style={s.fondoBeige} fixed />
+        {d.marcaAgua && <Image src={d.marcaAgua} style={s.marcaAgua} fixed />}
 
         <View style={s.head}>
           <View style={s.aluna}>

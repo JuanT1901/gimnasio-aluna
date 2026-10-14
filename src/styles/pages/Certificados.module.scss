@@ -343,8 +343,8 @@ $mobile: 768px;
 
 .paperTall { aspect-ratio: auto; min-height: 880px; }
 
-.bg2 { position: absolute; left: 13%; top: 22%; width: 80%; height: 58%; background: #e5e7eb; transform: rotate(-3deg); }
-.bg1 { position: absolute; left: 9%; top: 20%; width: 78%; height: 58%; background: #fdf3dc; transform: rotate(-3deg); }
+// Misma posición que en el PDF (carta de 612 × 792 pt)
+.marcaAgua { position: absolute; left: 10.5%; top: 20.2%; width: 81%; height: auto; }
 
 .inner {
   position: relative;
