@@ -1,8 +1,29 @@
 // app/components/SplashScreen.tsx
-'use client';
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import styles from 'app/styles/components/SplashScreen.module.scss';
+"use client";
+import { useEffect, useState } from "react";
+import { getImageProps } from "next/image";
+import styles from "app/styles/components/SplashScreen.module.scss";
+
+const alt = "Bienvenidos a Gimnasio Aluna, su colegio Ludo Club";
+
+// Pantallas verticales (celulares) usan la imagen vertical; el resto, la horizontal.
+const {
+  props: { srcSet: srcSetMovil },
+} = getImageProps({
+  alt,
+  src: "/Inicio-movil.png",
+  width: 780,
+  height: 1688,
+  sizes: "100vw",
+});
+const { props: propsEscritorio } = getImageProps({
+  alt,
+  src: "/Inicio.png",
+  width: 3200,
+  height: 1800,
+  sizes: "100vw",
+  priority: true,
+});
 
 const SplashScreen = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -10,7 +31,7 @@ const SplashScreen = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-    }, 3000); // se muestra por 3 segundos
+    }, 4000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -19,13 +40,10 @@ const SplashScreen = () => {
 
   return (
     <div className={styles.splash}>
-      <Image
-        src="/mascota.jpg"
-        alt="Mascota del colegio"
-        width={250}
-        height={380}
-        priority
-      />
+      <picture>
+        <source media="(orientation: portrait)" srcSet={srcSetMovil} />
+        <img {...propsEscritorio} alt={alt} className={styles.imagen} />
+      </picture>
     </div>
   );
 };

@@ -3,14 +3,18 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { FaSignOutAlt, FaHome, FaBars, FaTimes } from 'react-icons/fa'
+import { FaSignOutAlt, FaHome, FaBars, FaTimes, FaCalendarAlt, FaPencilAlt, FaBell } from 'react-icons/fa'
 import { useEffect, useState } from 'react'
 import sidebarStyles from 'app/styles/components/PlatformSidebar.module.scss'
+import horarioStyles from 'app/styles/pages/Horario.module.scss'
+import { EVENTO_NOTIFICACIONES } from 'app/utils/horario/comun'
+import { contarNotificacionesNoLeidas } from 'app/app/plataformas/profesores/notificaciones/actions'
 
 export default function TeacherSidebar() {
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [noLeidas, setNoLeidas] = useState(0)
   const [supabase] = useState(() => createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -18,6 +22,18 @@ export default function TeacherSidebar() {
 
   useEffect(() => {
     setMobileOpen(false)
+  }, [pathname])
+
+  // Contador de notificaciones: al cambiar de página, cada 2 minutos y cuando se marcan como leídas
+  useEffect(() => {
+    const actualizar = () => { contarNotificacionesNoLeidas().then(setNoLeidas).catch(() => {}) }
+    actualizar()
+    const intervalo = setInterval(actualizar, 120000)
+    window.addEventListener(EVENTO_NOTIFICACIONES, actualizar)
+    return () => {
+      clearInterval(intervalo)
+      window.removeEventListener(EVENTO_NOTIFICACIONES, actualizar)
+    }
   }, [pathname])
 
   const cerrarSesion = async () => {
@@ -34,10 +50,11 @@ export default function TeacherSidebar() {
         type="button"
         className={sidebarStyles.menuButton}
         onClick={() => setMobileOpen(true)}
-        aria-label="Abrir menú"
+        aria-label={noLeidas ? `Abrir menú (${noLeidas} notificaciones sin leer)` : 'Abrir menú'}
         style={{ backgroundColor: '#1e293b' }}
       >
         <FaBars />
+        {noLeidas > 0 && <span className={horarioStyles.menuDot} />}
       </button>
 
       <div
@@ -73,6 +90,28 @@ export default function TeacherSidebar() {
             style={{ ...btnStyle, backgroundColor: pathname?.includes('/dashboard') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/dashboard') ? '#10b981' : '#f8fafc' }}
           >
             <FaHome /> Inicio / Mis Clases
+          </Link>
+
+          <Link
+            href="/plataformas/profesores/horario"
+            style={{ ...btnStyle, backgroundColor: pathname?.includes('/horario') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/horario') ? '#10b981' : '#f8fafc' }}
+          >
+            <FaCalendarAlt /> Mi Horario
+          </Link>
+
+          <Link
+            href="/plataformas/profesores/planeacion"
+            style={{ ...btnStyle, backgroundColor: pathname?.includes('/planeacion') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/planeacion') ? '#10b981' : '#f8fafc' }}
+          >
+            <FaPencilAlt /> Planeación Semanal
+          </Link>
+
+          <Link
+            href="/plataformas/profesores/notificaciones"
+            style={{ ...btnStyle, backgroundColor: pathname?.includes('/notificaciones') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/notificaciones') ? '#10b981' : '#f8fafc' }}
+          >
+            <FaBell /> Notificaciones
+            {noLeidas > 0 && <span className={horarioStyles.badge}>{noLeidas > 99 ? '99+' : noLeidas}</span>}
           </Link>
 
           {/* Aquí luego agregaremos más opciones como: "Circulares", "Mi Perfil", etc. */}

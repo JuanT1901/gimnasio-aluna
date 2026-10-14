@@ -4,8 +4,9 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
-import { FaUsers, FaBook, FaSpinner, FaCrown, FaStar, FaChevronDown, FaChevronUp, FaChevronRight, FaFilePdf } from 'react-icons/fa'
+import { FaUsers, FaBook, FaSpinner, FaCrown, FaStar, FaChevronDown, FaChevronUp, FaChevronRight, FaFilePdf, FaBell } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
+import { contarNotificacionesNoLeidas } from '../notificaciones/actions'
 
 export default function ProfesorDashboard() {
   const [cursosAgrupados, setCursosAgrupados] = useState<Record<string, any[]>>({})
@@ -13,6 +14,7 @@ export default function ProfesorDashboard() {
   const [cursosDirector, setCursosDirector] = useState<any[]>([]) 
   const [cargando, setCargando] = useState(true)
   const [nombreProfesor, setNombreProfesor] = useState('')
+  const [notificaciones, setNotificaciones] = useState(0)
 
   const [supabase] = useState(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,6 +60,8 @@ export default function ProfesorDashboard() {
 
       if (cursosDirigidos) setCursosDirector(cursosDirigidos)
 
+      setNotificaciones(await contarNotificacionesNoLeidas().catch(() => 0))
+
       setCargando(false)
     }
 
@@ -82,6 +86,19 @@ export default function ProfesorDashboard() {
         <h1>¡Hola, Profe {nombreProfesor}! 🍎</h1>
         <p>Bienvenido a tu panel de control. Selecciona un curso para ver tus materias asignadas.</p>
       </header>
+
+      {notificaciones > 0 && (
+        <Link
+          href="/plataformas/profesores/notificaciones"
+          style={{ maxWidth: '800px', margin: '0 auto 30px auto', display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '16px 20px', color: '#92400e', textDecoration: 'none', fontWeight: 500 }}
+        >
+          <FaBell color="#f59e0b" size={18} />
+          <span style={{ flex: 1 }}>
+            Tienes {notificaciones} notificación{notificaciones > 1 ? 'es' : ''} de rectoría sobre tus planeaciones.
+          </span>
+          <FaChevronRight size={14} />
+        </Link>
+      )}
 
       {/* 👑 PANEL DORADO MULTI-CURSO PARA DIRECTORES DE GRUPO */}
       {cursosDirector.length > 0 && (

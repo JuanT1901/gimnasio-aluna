@@ -6,56 +6,9 @@ import { createBrowserClient } from '@supabase/ssr'
 import { FaBook, FaSpinner, FaEdit, FaCheck, FaTimes, FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaLayerGroup } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { renombrarMateria, crearMateria, eliminarMateria } from './actions'
+import { buscarArea, COLORES_AREA } from 'app/utils/areas'
 
 const CURSOS_PREESCOLAR = ['Aventureros', 'Creativos', 'Expertos']
-
-const MAPA_AREAS_RAW: Record<string, string> = {
-  'Matematicas': 'Matemáticas',
-  'Calculo Mental': 'Matemáticas',
-  'Geometria': 'Matemáticas',
-  'Estadistica': 'Matemáticas',
-  'Estadisticas': 'Matemáticas',
-  'Ciencias': 'Ciencias Naturales y Educación Ambiental',
-  'Ciencias Naturales': 'Ciencias Naturales y Educación Ambiental',
-  'Pre fisica': 'Ciencias Naturales y Educación Ambiental',
-  'Pre quimica': 'Ciencias Naturales y Educación Ambiental',
-  'Fisica': 'Ciencias Naturales y Educación Ambiental',
-  'Quimica': 'Ciencias Naturales y Educación Ambiental',
-  'Español': 'Humanidades',
-  'Lectura critica': 'Humanidades',
-  'Produccion textual': 'Humanidades',
-  'Ingles': 'Humanidades',
-  'Sociales': 'Ciencias Sociales',
-  'Historia': 'Ciencias Sociales',
-  'Geografia': 'Ciencias Sociales',
-  'Emprendimiento': 'Ciencias Sociales',
-  'Sistemas': 'Tecnología e Informática',
-  'Arte': 'Educación Artística y Cultural',
-  'Artes': 'Educación Artística y Cultural',
-  'Educacion fisica': 'Educación Artística y Cultural',
-  'Musica': 'Educación Artística y Cultural',
-  'Convivencia': 'Comportamiento'
-}
-
-const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-
-const MAPA_AREAS: Record<string, string> = {}
-for (const [key, value] of Object.entries(MAPA_AREAS_RAW)) {
-  MAPA_AREAS[normalizar(key)] = value
-}
-
-const buscarArea = (nombre: string) => MAPA_AREAS[normalizar(nombre)] || 'Otras Áreas'
-
-const COLORES_AREA: Record<string, { bg: string, text: string, border: string }> = {
-  'Matemáticas': { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
-  'Ciencias Naturales y Educación Ambiental': { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
-  'Humanidades': { bg: '#fefce8', text: '#a16207', border: '#fef08a' },
-  'Ciencias Sociales': { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8' },
-  'Tecnología e Informática': { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe' },
-  'Educación Artística y Cultural': { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
-  'Comportamiento': { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
-  'Otras Áreas': { bg: '#f8fafc', text: '#475569', border: '#e2e8f0' },
-}
 
 function agruparPorArea(materias: any[]) {
   const grupos: Record<string, any[]> = {}

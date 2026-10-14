@@ -90,6 +90,11 @@ export default function Navbar() {
                 Pagos
               </a>
             </li>
+            <li>
+              <Link href="/certificados" onClick={closeMenu}>
+                Certificados
+              </Link>
+            </li>
 
           </ul>
         </div>

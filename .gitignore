@@ -44,3 +44,12 @@ CLAUDE.md
 *.tsbuildinfo
 next-env.d.ts
 
+# documentos internos del colegio: firma de la rectora y certificados con datos reales de estudiantes
+/docs/certificados/
+
+
+# scripts y datos de la base de datos: se ejecutan a mano en Supabase, no van al repositorio
+/supabase/
+
+# mockups para mostrar a la rectora: no son parte de la aplicación
+/mockups/

@@ -14,7 +14,11 @@ import {
   FaUsers,
   FaFileSignature,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaCalendarAlt,
+  FaFileAlt,
+  FaPlus,
+  FaList
 } from 'react-icons/fa'
 
 export default function Sidebar() {
@@ -28,6 +32,7 @@ export default function Sidebar() {
   const isActive = (path: string) => pathname === path ? styles.active : ''
 
   const isCircularActive = pathname.includes('/circulares')
+  const isCertificadoActive = pathname.includes('/certificados')
 
   return (
     <>
@@ -81,11 +86,42 @@ export default function Sidebar() {
           */}
 
           <Link
+            href="/plataformas/estudiantes/horario"
+            className={isActive('/plataformas/estudiantes/horario')}
+          >
+            <FaCalendarAlt /> Mi Horario
+          </Link>
+
+          <Link
             href="/plataformas/estudiantes/boletines"
             className={isActive('/plataformas/estudiantes/boletines')}
           >
             <FaFileSignature /> Mis Boletines
           </Link>
+
+          <details className={styles.detailsMenu} open={isCertificadoActive}>
+            <summary className={`${styles.summary} ${isCertificadoActive ? styles.activeSummary : ''}`}>
+              <div className={styles.summaryContent}>
+                <FaFileAlt /> Certificados
+              </div>
+              <FaChevronDown className={styles.chevron} />
+            </summary>
+
+            <div className={styles.submenu}>
+              <Link
+                href="/plataformas/estudiantes/certificados"
+                className={isActive('/plataformas/estudiantes/certificados')}
+              >
+                <FaPlus /> Solicitar certificado
+              </Link>
+              <Link
+                href="/plataformas/estudiantes/certificados/solicitados"
+                className={isActive('/plataformas/estudiantes/certificados/solicitados')}
+              >
+                <FaList /> Solicitados
+              </Link>
+            </div>
+          </details>
 
           <details className={styles.detailsMenu} open={isCircularActive}>
             <summary className={`${styles.summary} ${isCircularActive ? styles.activeSummary : ''}`}>
