@@ -170,8 +170,11 @@ $mobile: 768px;
   strong { display: block; color: $ink; font-size: 0.92rem; }
 }
 
+// La fecha de hoy sigue debajo del día (block), solo que resaltada y del ancho del texto
 .dayToday strong {
-  display: inline-block;
+  display: block;
+  width: fit-content;
+  margin: 2px auto 0;
   color: white;
   background: $blue;
   border-radius: 6px;
