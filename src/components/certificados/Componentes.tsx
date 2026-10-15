@@ -19,11 +19,16 @@ export function EstadoPill({ estado, para, pagado = false }: { estado: EstadoSol
   return <span className={`${h.pill} ${CLASE_ESTADO[estado]}`}>{(para === 'rectora' ? ESTADO_RECTORA : ESTADO_ACUDIENTE)[estado]}</span>
 }
 
-export function Pasos({ estado }: { estado: EstadoSolicitud }) {
-  const actual = { pending_payment: 1, payment_requested: 1, in_review: 2, sent: 4 }[estado]
+// Con «datosConfirmados» incluye la revisión del borrador por parte del acudiente (solicitudes del portal)
+export function Pasos({ estado, datosConfirmados, pagado = false }: { estado: EstadoSolicitud, datosConfirmados?: boolean, pagado?: boolean }) {
+  const conRevision = datosConfirmados !== undefined
+  const actual = conRevision
+    ? (estado === 'sent' ? 4 : !datosConfirmados ? 1 : !pagado ? 2 : 3)
+    : { pending_payment: 1, payment_requested: 1, in_review: 2, sent: 4 }[estado]
+  const pasos = conRevision ? ['Solicitado', 'Datos confirmados', 'Pago', 'Enviado'] : ['Solicitado', 'Pago', 'Revisión', 'Enviado']
   return (
     <div className={c.steps}>
-      {['Solicitado', 'Pago', 'Revisión', 'Enviado'].map((p, i) => (
+      {pasos.map((p, i) => (
         <span key={p} className={i < actual ? c.stepDone : i === actual ? c.stepNow : ''}>{p}</span>
       ))}
     </div>
@@ -33,11 +38,11 @@ export function Pasos({ estado }: { estado: EstadoSolicitud }) {
 export function OpcionesPago({ banco, efectivo }: { banco: string | null, efectivo: string | null }) {
   return (
     <div className={c.payopts}>
-      {/* Sin datos bancarios configurados, la opción no se muestra */}
+      {/* Sin datos para la transferencia configurados, la opción no se muestra */}
       {banco && (
         <div className={c.payopt}>
           <span className={c.payIco} style={{ background: '#dbeafe', color: '#1d4ed8' }}>B</span>
-          <div><strong>Consignación o transferencia</strong><span>{banco}</span></div>
+          <div><strong>Transferencia bancaria</strong><span>{banco}</span></div>
         </div>
       )}
       <div className={c.payopt}>
@@ -58,15 +63,16 @@ const ICONOS = {
 const nota = (n: number | null) => (typeof n === 'number' ? n.toFixed(1) : '')
 
 // Vista previa del certificado con el formato del colegio (el PDF final se genera en el servidor con el mismo texto)
-export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo, verificacion, firmaUrl }: {
+export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo, verificacion, firmaUrl, borrador = false }: {
   tipo: TipoCertificado
   campos: CamposCertificado
   colegio: Colegio
   formato: FormatoNotas
   notas: FilaNotas[] | null
-  codigo: string
+  codigo: string | null
   verificacion: string | null
   firmaUrl: string | null
+  borrador?: boolean // el que ve el acudiente: sin firma ni consecutivo
 }) {
   const texto = textoCertificado(tipo, campos, colegio, formato)
   const web = colegio.website.replace(/^https?:\/\//, '')
@@ -86,6 +92,7 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
       <div className={`${c.paper} ${muchasFilas ? c.paperTall : ''}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className={c.marcaAgua} src="/marca-agua-certificados.jpg" alt="" />
+        {borrador && <div className={c.sello} aria-hidden="true">BORRADOR</div>}
         <div className={c.inner}>
           <div className={c.pHead}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -118,8 +125,10 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
 
           <div className={c.pBottom}>
             <div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {firmaUrl ? <img className={c.sig} src={firmaUrl} alt="Firma de la rectora" /> : <div className={c.sigMissing}>Falta cargar la firma<br />(Configuración)</div>}
+              {borrador ? <div className={c.sigBlank} />
+                // eslint-disable-next-line @next/next/no-img-element
+                : firmaUrl ? <img className={c.sig} src={firmaUrl} alt="Firma de la rectora" />
+                  : <div className={c.sigMissing}>Falta cargar la firma<br />(Configuración)</div>}
               <b>{colegio.signerShort}</b><br />{colegio.signerTitle}.<br />{colegio.institutionName}.
             </div>
             <div className={c.pFoot}>
@@ -131,7 +140,8 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
           </div>
         </div>
         <div className={c.pMeta}>
-          Certificado N.º {codigo}{verificacion ? ` · Código de verificación ${verificacion}` : ' · El código de verificación se crea al enviarlo'}
+          {borrador ? 'Borrador para revisar los datos. No tiene validez.'
+            : <>Certificado N.º {codigo}{verificacion ? ` · Código de verificación ${verificacion}` : ' · El código de verificación se crea al enviarlo'}</>}
         </div>
       </div>
     </div>

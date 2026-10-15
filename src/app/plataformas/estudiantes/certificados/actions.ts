@@ -1,9 +1,12 @@
 'use server'
 
-import { type EstadoSolicitud, type TipoCertificado, type TipoConfig, enlaceWhatsapp } from 'app/utils/certificados/comun'
 import {
-  getAdmin, obtenerSesion, cargarColegio, cargarTipos, cargarEstudiante, anioActivo, enlaceTemporal,
-  registrarComprobante, registrarAvisoWhatsapp, esCorreo,
+  type CamposCertificado, type Colegio, type EstadoRevision, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
+  enlaceWhatsapp,
+} from 'app/utils/certificados/comun'
+import {
+  type FilaSolicitud, getAdmin, obtenerSesion, cargarColegio, cargarTipos, cargarEstudiante, anioActivo, enlaceTemporal,
+  registrarComprobante, registrarAvisoWhatsapp, esCorreo, armarBorrador,
 } from 'app/utils/certificados/servidor'
 
 async function sesionEstudiante() {
@@ -55,14 +58,18 @@ export async function obtenerDatosSolicitud(): Promise<{ exito: boolean, error?:
   }
 }
 
-export async function crearSolicitud(datos: { tipo: TipoCertificado, anio: number | null, solicitante: string, correo: string, comentario: string }) {
+export async function crearSolicitud(datos: {
+  tipo: TipoCertificado, anio: number | null, solicitante: string, correo: string, comentario: string,
+  porCorreo: boolean, impreso: boolean, incluirCostos: boolean,
+}) {
   const sesion = await sesionEstudiante()
   if (!sesion) return { exito: false, error: 'No autorizado' }
 
   const solicitante = datos.solicitante.trim().slice(0, 120)
   const correo = datos.correo.trim().toLowerCase()
   if (!solicitante) return { exito: false, error: 'Escribe el nombre de quien solicita el certificado.' }
-  if (!esCorreo(correo)) return { exito: false, error: 'Escribe un correo válido para recibir el certificado.' }
+  if (!datos.porCorreo && !datos.impreso) return { exito: false, error: 'Elige si lo quieres por correo, impreso o de las dos formas.' }
+  if (datos.porCorreo && !esCorreo(correo)) return { exito: false, error: 'Escribe un correo válido para recibir el certificado.' }
 
   const admin = getAdmin()
   const [est, tipos, activo] = await Promise.all([cargarEstudiante(admin, sesion.userId), cargarTipos(admin, true), anioActivo(admin)])
@@ -78,7 +85,8 @@ export async function crearSolicitud(datos: { tipo: TipoCertificado, anio: numbe
   const { data, error } = await admin.from('certificate_requests').insert({
     type_code: datos.tipo, cert_year: anio, origin: 'portal', student_profile_id: est.id, registered: true,
     student_name: est.fullName, doc_type: est.docType, doc_number: est.docNumber, birth_date: est.birthDate,
-    requester_name: solicitante, requester_email: correo, comment: datos.comentario.trim().slice(0, 500) || null,
+    requester_name: solicitante, requester_email: datos.porCorreo ? correo : null, comment: datos.comentario.trim().slice(0, 500) || null,
+    deliver_email: datos.porCorreo, deliver_printed: datos.impreso, include_costs: datos.tipo === 'estudio' && datos.incluirCostos,
   }).select('id, code').single()
 
   if (error) return { exito: false, error: error.message }
@@ -99,6 +107,10 @@ export type MiSolicitud = {
   createdAt: string
   whatsapp: string | null
   pagado: boolean
+  reviewStatus: EstadoRevision
+  reviewComment: string | null
+  porCorreo: boolean
+  impreso: boolean
 }
 
 export async function obtenerMisSolicitudes(): Promise<{ exito: boolean, error?: string, solicitudes?: MiSolicitud[], pago?: { banco: string | null, efectivo: string | null } }> {
@@ -108,7 +120,7 @@ export async function obtenerMisSolicitudes(): Promise<{ exito: boolean, error?:
   const admin = getAdmin()
   const [{ data, error }, tipos, colegio] = await Promise.all([
     admin.from('certificate_requests')
-      .select('id, code, type_code, cert_year, status, proof_via, payment_method, admin_message, requester_email, sent_to, sent_at, created_at, student_name')
+      .select('id, code, type_code, cert_year, status, proof_via, payment_method, admin_message, requester_email, sent_to, sent_at, created_at, student_name, review_status, review_comment, deliver_email, deliver_printed')
       .eq('student_profile_id', sesion.userId)
       .order('created_at', { ascending: false }),
     cargarTipos(admin), cargarColegio(admin),
@@ -123,9 +135,11 @@ export async function obtenerMisSolicitudes(): Promise<{ exito: boolean, error?:
       const nombre = `${tipo?.name ?? 'Certificado'}${r.cert_year ? ` ${r.cert_year}` : ''}`
       return {
         id: r.id, code: r.code, tipoNombre: tipo?.name ?? 'Certificado', anio: r.cert_year, status: r.status, proofVia: r.proof_via,
-        adminMessage: r.admin_message, requesterEmail: r.requester_email, sentTo: r.sent_to, sentAt: r.sent_at, createdAt: r.created_at,
+        adminMessage: r.admin_message, requesterEmail: r.requester_email ?? '', sentTo: r.sent_to, sentAt: r.sent_at, createdAt: r.created_at,
         whatsapp: colegio.whatsappNumber ? enlaceWhatsapp(colegio.whatsappNumber, r.code, nombre, r.student_name) : null,
         pagado: !!r.payment_method,
+        reviewStatus: r.review_status ?? 'pending', reviewComment: r.review_comment,
+        porCorreo: r.deliver_email !== false, impreso: !!r.deliver_printed,
       }
     }),
   }
@@ -159,4 +173,50 @@ export async function descargarMiCertificado(id: number) {
   if (!data || data.status !== 'sent') return { exito: false, error: 'El certificado aún no está disponible.' }
   const url = await enlaceTemporal(admin, data.pdf_path, 300)
   return url ? { exito: true, url } : { exito: false, error: 'No se encontró el PDF.' }
+}
+
+export type Borrador = {
+  tipo: TipoCertificado
+  campos: CamposCertificado
+  colegio: Colegio
+  formato: FormatoNotas
+  notas: FilaNotas[] | null
+  // Notas de un año que no está en la plataforma y que la rectora aún no ha llenado
+  notasPendientes: boolean
+}
+
+// Borrador sin firma ni consecutivo para que el acudiente revise los datos
+export async function verBorrador(id: number): Promise<{ exito: boolean, error?: string, borrador?: Borrador }> {
+  const sesion = await sesionEstudiante()
+  if (!sesion) return { exito: false, error: 'No autorizado' }
+
+  const admin = getAdmin()
+  const { data: r } = await admin.from('certificate_requests').select('*').eq('id', id).eq('student_profile_id', sesion.userId).maybeSingle()
+  if (!r) return { exito: false, error: 'No encontramos la solicitud.' }
+  if (r.status === 'sent') return { exito: false, error: 'Este certificado ya fue enviado.' }
+
+  const [colegio, b] = await Promise.all([cargarColegio(admin), armarBorrador(admin, r as FilaSolicitud)])
+  return { exito: true, borrador: { tipo: r.type_code, campos: b.campos, colegio, formato: b.formato, notas: b.notas, notasPendientes: b.origenNotas === 'manual' } }
+}
+
+export async function responderBorrador(id: number, correcto: boolean, comentario: string) {
+  const sesion = await sesionEstudiante()
+  if (!sesion) return { exito: false, error: 'No autorizado' }
+
+  const texto = comentario.trim().slice(0, 1000)
+  if (!correcto && !texto) return { exito: false, error: 'Cuéntanos qué dato hay que corregir.' }
+
+  const { data, error } = await getAdmin()
+    .from('certificate_requests')
+    .update({
+      review_status: correcto ? 'confirmed' : 'changes_requested', review_comment: correcto ? null : texto,
+      reviewed_at: new Date().toISOString(), admin_seen_at: null, updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('student_profile_id', sesion.userId)
+    .neq('status', 'sent')
+    .select('id')
+  if (error) return { exito: false, error: error.message }
+  if (!data?.length) return { exito: false, error: 'No se pudo registrar tu respuesta.' }
+  return { exito: true }
 }

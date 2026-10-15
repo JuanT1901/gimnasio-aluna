@@ -5,6 +5,8 @@ export type TipoCertificado = 'estudio' | 'promocion' | 'notas'
 export type EstadoSolicitud = 'pending_payment' | 'in_review' | 'payment_requested' | 'sent'
 export type FormatoNotas = 'preescolar' | 'primaria' | 'secundaria'
 export type ResultadoAnio = 'promoted' | 'repeat' | 'left' | 'graduated'
+// Revisión del borrador por parte del acudiente
+export type EstadoRevision = 'pending' | 'confirmed' | 'changes_requested'
 
 export const ESTADO_ACUDIENTE: Record<EstadoSolicitud, string> = {
   pending_payment: 'Pendiente de pago',
@@ -30,7 +32,13 @@ export const RESULTADO: Record<ResultadoAnio, string> = {
 // Etiqueta cuando la rectora ya confirmó el pago pero aún no ha enviado el certificado
 export const ESTADO_PAGADO = 'Pago confirmado'
 
-export const METODOS_PAGO = ['Consignación', 'Efectivo'] as const
+export const REVISION_RECTORA: Record<EstadoRevision, string> = {
+  pending: 'Esperando confirmación de datos',
+  confirmed: 'Datos confirmados',
+  changes_requested: 'Pide corregir datos',
+}
+
+export const METODOS_PAGO = ['Transferencia', 'Efectivo'] as const
 export const MENSAJE_SOLICITAR_PAGO = 'Aún no hemos recibido el pago de este certificado. Por favor realiza el pago y sube el comprobante o envíalo por WhatsApp.'
 export const MAX_COMPROBANTE_MB = 5
 export const TIPOS_COMPROBANTE = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
@@ -76,6 +84,8 @@ export type CamposCertificado = {
   grado: string // grado oficial, ej. «Quinto»
   nivel: string // ej. «educación básica primaria»
   anio: number | null // año lectivo del certificado de notas o de promoción
+  matricula?: number | null // solo en el de estudio, si el acudiente pidió los costos
+  pension?: number | null
 }
 
 export type FilaNotas = { area: string, subject: string, p: (number | null)[], def: number | null }
@@ -160,7 +170,13 @@ export function textoCertificado(tipo: TipoCertificado, c: CamposCertificado, co
   const cierre = `Se firma en ${col.city} por solicitud y para los fines que al interesado le convengan, a los ${dia} días del mes de ${mes} de ${anio}.`
 
   if (tipo === 'estudio') {
-    return { fecha, fechaAlDerecha: true, cierre, parrafo: [...inicio, { t: `se encuentra matriculado en esta institución en el nivel ${c.grado} de ${c.nivel}${horario}` }] }
+    const parrafo: Segmento[] = [...inicio, { t: `se encuentra matriculado en esta institución en el nivel ${c.grado} de ${c.nivel}${horario}` }]
+    const costos = [
+      typeof c.matricula === 'number' && `el valor de la matrícula es de ${formatoPrecio(c.matricula)}`,
+      typeof c.pension === 'number' && `el valor de la pensión mensual es de ${formatoPrecio(c.pension)}`,
+    ].filter(Boolean) as string[]
+    if (costos.length) parrafo.push({ t: ` Para el año ${fechaCierre(c.fecha).anio}, ${costos.join(' y ')}.` })
+    return { fecha, fechaAlDerecha: true, cierre, parrafo }
   }
   if (tipo === 'promocion') {
     return { fecha, fechaAlDerecha: true, cierre, parrafo: [...inicio, { t: `fue promovido en esta institución para el año lectivo ${c.anio ?? ''} al nivel ${c.grado} de ${c.nivel}${horario}` }] }

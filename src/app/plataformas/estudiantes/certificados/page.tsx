@@ -19,6 +19,9 @@ export default function SolicitarCertificadoPage() {
   const [solicitante, setSolicitante] = useState('')
   const [correo, setCorreo] = useState('')
   const [comentario, setComentario] = useState('')
+  const [porCorreo, setPorCorreo] = useState(true)
+  const [impreso, setImpreso] = useState(false)
+  const [incluirCostos, setIncluirCostos] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
@@ -42,7 +45,7 @@ export default function SolicitarCertificadoPage() {
   const enviar = async () => {
     if (!tipo) return
     setEnviando(true)
-    const r = await crearSolicitud({ tipo, anio: tipo === 'estudio' ? null : anioElegido, solicitante, correo, comentario })
+    const r = await crearSolicitud({ tipo, anio: tipo === 'estudio' ? null : anioElegido, solicitante, correo, comentario, porCorreo, impreso, incluirCostos })
     setEnviando(false)
     if (!r.exito) { alert(r.error); return }
     router.push(`/plataformas/estudiantes/certificados/solicitados?nueva=${r.id}`)
@@ -53,7 +56,7 @@ export default function SolicitarCertificadoPage() {
       <header className={styles.header} style={{ marginBottom: '24px' }}>
         <div>
           <h1>Solicitar certificado</h1>
-          <p>Elige el certificado que necesitas. La rectora lo revisa y te llega al correo en PDF.</p>
+          <p>Elige el certificado que necesitas. Primero revisas un borrador con los datos y, cuando confirmes que están bien, la rectora genera el certificado firmado.</p>
         </div>
       </header>
 
@@ -89,21 +92,39 @@ export default function SolicitarCertificadoPage() {
               </label>
             )}
 
+            {tipo === 'estudio' && (
+              <label className={c.check}>
+                <input type="checkbox" checked={incluirCostos} onChange={e => setIncluirCostos(e.target.checked)} />
+                Incluir en el certificado el valor de la matrícula y de la pensión mensual.
+              </label>
+            )}
+
+            <div className={h.field}>
+              ¿Cómo lo necesitas?
+              <label className={c.check}><input type="checkbox" checked={porCorreo} onChange={e => setPorCorreo(e.target.checked)} /> Enviado al correo electrónico (PDF)</label>
+              <label className={c.check}><input type="checkbox" checked={impreso} onChange={e => setImpreso(e.target.checked)} /> Impreso, para recogerlo en el colegio</label>
+              {!porCorreo && !impreso && <small style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400, color: '#c2410c' }}>Elige al menos una opción.</small>}
+            </div>
+
             <label className={h.field}>¿Quién lo solicita?<input className={h.input} value={solicitante} onChange={e => setSolicitante(e.target.value)} placeholder="Nombre completo" /></label>
 
-            <label className={h.field}>
-              Correo donde recibirás el certificado
-              <input className={h.input} type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="correo@ejemplo.com" />
-              {sugerido && <small style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
-                Te sugerimos el correo {sugerido.etiqueta === 'Mamá' ? 'de la mamá' : 'del papá'} porque en la ficha dice que vive con el estudiante. Puedes escribir cualquier otro.
-              </small>}
-            </label>
-            {datos.correos.length > 0 && (
-              <div className={c.chips}>
-                {datos.correos.map(x => (
-                  <button key={x.correo} type="button" className={`${h.btn} ${h.btnGhost} ${h.btnSm}`} onClick={() => setCorreo(x.correo)}>{x.etiqueta} · {x.correo}</button>
-                ))}
-              </div>
+            {porCorreo && (
+              <>
+                <label className={h.field}>
+                  Correo donde recibirás el certificado
+                  <input className={h.input} type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="correo@ejemplo.com" />
+                  {sugerido && <small style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
+                    Te sugerimos el correo {sugerido.etiqueta === 'Mamá' ? 'de la mamá' : 'del papá'} porque en la ficha dice que vive con el estudiante. Puedes escribir cualquier otro.
+                  </small>}
+                </label>
+                {datos.correos.length > 0 && (
+                  <div className={c.chips}>
+                    {datos.correos.map(x => (
+                      <button key={x.correo} type="button" className={`${h.btn} ${h.btnGhost} ${h.btnSm}`} onClick={() => setCorreo(x.correo)}>{x.etiqueta} · {x.correo}</button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             <label className={h.field}>Comentario (opcional)<textarea className={h.input} rows={3} value={comentario} onChange={e => setComentario(e.target.value)} placeholder="Ej: Lo necesito para la EPS." /></label>
@@ -114,11 +135,12 @@ export default function SolicitarCertificadoPage() {
             <dl className={c.kv}>
               <dt>Certificado</dt><dd>{t.name}{tipo !== 'estudio' ? ` ${anioElegido}` : ''}</dd>
               <dt>Precio</dt><dd>{formatoPrecio(t.price)}</dd>
+              <dt>Entrega</dt><dd>{[porCorreo && 'Correo', impreso && 'Impreso'].filter(Boolean).join(' e ') || '—'}</dd>
             </dl>
             <p>Formas de pago:</p>
             <OpcionesPago banco={datos.pago.banco} efectivo={datos.pago.efectivo} />
-            <p>Después de enviar la solicitud podrás subir el comprobante o enviarlo por WhatsApp desde «Solicitados».</p>
-            <button type="button" className={`${h.btn} ${h.btnBlue}`} disabled={enviando} onClick={enviar}>
+            <p>Después de enviar la solicitud, en «Solicitados» podrás revisar el borrador del certificado y subir el comprobante de pago o enviarlo por WhatsApp.</p>
+            <button type="button" className={`${h.btn} ${h.btnBlue}`} disabled={enviando || (!porCorreo && !impreso)} onClick={enviar}>
               {enviando && <FaSpinner className="fa-spin" />} Enviar solicitud
             </button>
           </aside>

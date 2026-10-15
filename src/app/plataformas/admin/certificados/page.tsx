@@ -8,12 +8,13 @@ import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
 import { Segmentado } from 'app/components/horario/HorarioSemanal'
 import { EstadoPill } from 'app/components/certificados/Componentes'
+import { REVISION_RECTORA } from 'app/utils/certificados/comun'
 import { obtenerSolicitudes, type ResumenSolicitud } from './actions'
 
 type Grupo = 'revisar' | 'espera' | 'enviados' | 'todas'
 
 const EN_GRUPO: Record<Grupo, (s: ResumenSolicitud) => boolean> = {
-  revisar: s => s.status === 'in_review',
+  revisar: s => s.status === 'in_review' || (s.status !== 'sent' && s.reviewStatus === 'changes_requested'),
   espera: s => s.status === 'pending_payment' || s.status === 'payment_requested',
   enviados: s => s.status === 'sent',
   todas: () => true,
@@ -43,7 +44,7 @@ export default function SolicitudesCertificadosPage() {
       <header className={styles.header} style={{ marginBottom: '24px' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><FaFileAlt color="#3b82f6" /> Solicitudes de certificados</h1>
-          <p>Revisa el pago, verifica los datos y envía el certificado por correo.</p>
+          <p>El acudiente confirma los datos en el borrador; tú confirmas el pago y generas el certificado firmado.</p>
         </div>
       </header>
 
@@ -75,6 +76,12 @@ export default function SolicitudesCertificadosPage() {
                 <div className={c.rTags}>
                   {s.origin === 'public' && <span className={`${h.pill} ${c.pillAlum}`}>Exalumno</span>}
                   {!s.registered && <span className={`${h.pill} ${c.pillWarn}`}>No registrado</span>}
+                  {s.origin === 'portal' && s.status !== 'sent' && (
+                    <span className={`${h.pill} ${s.reviewStatus === 'confirmed' ? h.pillPublished : s.reviewStatus === 'changes_requested' ? c.pillAsk : h.pillNone}`}>
+                      {REVISION_RECTORA[s.reviewStatus]}
+                    </span>
+                  )}
+                  {s.impreso && <span className={`${h.pill} ${h.pillNone}`}>Impreso</span>}
                   {s.status === 'in_review' && s.proofVia === 'upload' && <span className={`${h.pill} ${h.pillNone}`}>Comprobante subido</span>}
                   {s.status === 'in_review' && s.proofVia === 'whatsapp' && <span className={`${h.pill} ${h.pillNone}`}>Comprobante por WhatsApp</span>}
                 </div>

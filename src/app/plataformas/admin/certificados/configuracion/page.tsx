@@ -108,7 +108,7 @@ export default function ConfiguracionCertificadosPage() {
           <section className={c.panel}>
             <h3>Formas de pago</h3>
             {texto('whatsappNumber', 'WhatsApp para comprobantes', { ayuda: 'Con el indicativo 57 adelante, sin espacios. Ej: 573144698955.' })}
-            {texto('bankInfo', 'Datos para consignación', { area: true, placeholder: 'Banco, tipo y número de cuenta, titular' })}
+            {texto('bankInfo', 'Datos para transferencia bancaria', { area: true, placeholder: 'Ej: Nequi o Daviplata al 300 000 0000 a nombre de …', ayuda: 'Mientras esté vacío, la opción de transferencia no se muestra a los acudientes.' })}
             {texto('cashInfo', 'Pago en efectivo', { area: true, placeholder: 'Dónde y en qué horario se paga' })}
           </section>
 
@@ -158,11 +158,11 @@ export default function ConfiguracionCertificadosPage() {
         </div>
 
         <section className={c.panel}>
-          <h3>Cursos: grado oficial y curso siguiente</h3>
-          <p>El certificado dice el grado oficial (ej. «Quinto de educación básica primaria»), no el nombre del curso. El curso siguiente es a donde pasan los estudiantes en «Fin de año». Si un curso tiene estudiantes de dos grados, deja el grado del curso y corrígelo en cada certificado.</p>
+          <h3>Cursos: grado oficial, costos y curso siguiente</h3>
+          <p>El certificado dice el grado oficial (ej. «Quinto de educación básica primaria»), no el nombre del curso. El curso siguiente es a donde pasan los estudiantes en «Fin de año». Si un curso tiene estudiantes de dos grados, deja el grado del curso y corrígelo en cada certificado. La matrícula y la pensión aparecen en el certificado de estudio cuando el acudiente las pide.</p>
           <div className={c.tblWrap}>
             <table className={c.tbl}>
-              <thead><tr><th>Curso</th><th>Grado oficial</th><th>Nivel</th><th>Pasan a</th><th>Último curso</th></tr></thead>
+              <thead><tr><th>Curso</th><th>Grado oficial</th><th>Nivel</th><th>Matrícula (COP)</th><th>Pensión mensual (COP)</th><th>Pasan a</th><th>Último curso</th></tr></thead>
               <tbody>
                 {cursos.map(x => (
                   <tr key={x.id}>
@@ -171,6 +171,10 @@ export default function ConfiguracionCertificadosPage() {
                       <option value="">—</option>{GRADOS_OFICIALES.map(g => <option key={g}>{g}</option>)}</select></td>
                     <td><select value={x.officialLevel} onChange={e => cambiarCurso(x.id, { officialLevel: e.target.value })}>
                       <option value="">—</option>{NIVELES.map(n => <option key={n}>{n}</option>)}</select></td>
+                    <td style={{ width: '140px' }}><input type="number" min={0} step={1000} placeholder="—" value={x.tuitionFee ?? ''} aria-label={`Matrícula de ${x.name}`}
+                      onChange={e => cambiarCurso(x.id, { tuitionFee: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                    <td style={{ width: '140px' }}><input type="number" min={0} step={1000} placeholder="—" value={x.monthlyFee ?? ''} aria-label={`Pensión mensual de ${x.name}`}
+                      onChange={e => cambiarCurso(x.id, { monthlyFee: e.target.value === '' ? null : Number(e.target.value) })} /></td>
                     <td><select value={x.nextGradeId ?? ''} disabled={x.isFinal} onChange={e => cambiarCurso(x.id, { nextGradeId: e.target.value ? Number(e.target.value) : null })}>
                       <option value="">—</option>{cursos.filter(o => o.id !== x.id).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></td>
                     <td style={{ textAlign: 'center' }}><input type="checkbox" checked={x.isFinal} aria-label={`${x.name} es el último curso`}

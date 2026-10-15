@@ -5,6 +5,7 @@ import path from 'path'
 import { headers } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdmin, obtenerSesion } from 'app/utils/horario/servidor'
+import { hoyISO } from 'app/utils/horario/comun'
 import {
   type CamposCertificado, type Colegio, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
   MAX_COMPROBANTE_MB, TIPOS_COMPROBANTE, areaCertificado, formatoDeCurso, nivelDeGrado, ordenarNotas, plantillaNotas, promedio,
@@ -77,6 +78,8 @@ export type Estudiante = {
   fatherName: string | null
   fatherEmail: string | null
   fatherLives: boolean
+  tuitionFee: number | null // matrícula y pensión del curso, para el certificado de estudio
+  monthlyFee: number | null
 }
 
 const esSi = (v: unknown) => v === true || ['si', 'sí', 'true', 's', 'yes', '1'].includes(String(v ?? '').trim().toLowerCase())
@@ -90,7 +93,7 @@ export async function cargarEstudiante(admin: SupabaseClient, id: string): Promi
   if (!p || p.role !== 'student') return null
 
   const { data: g } = p.grade_id
-    ? await admin.from('grades').select('official_grade, official_level').eq('id', p.grade_id).maybeSingle()
+    ? await admin.from('grades').select('official_grade, official_level, tuition_fee, monthly_fee').eq('id', p.grade_id).maybeSingle()
     : { data: null }
 
   const grado = p.official_grade || g?.official_grade || ''
@@ -112,6 +115,8 @@ export async function cargarEstudiante(admin: SupabaseClient, id: string): Promi
     fatherName: p.father_name ?? null,
     fatherEmail: p.father_email ?? null,
     fatherLives: esSi(p.father_lives_with_student),
+    tuitionFee: g?.tuition_fee == null ? null : Number(g.tuition_fee),
+    monthlyFee: g?.monthly_fee == null ? null : Number(g.monthly_fee),
   }
 }
 
@@ -137,9 +142,10 @@ async function gradoEnAnio(admin: SupabaseClient, est: Estudiante, tipo: TipoCer
   return { grado: grado ?? '', nivel: (tipo === 'notas' ? delAnio?.official_level : null) || nivelDeGrado(grado) }
 }
 
-export async function camposIniciales(admin: SupabaseClient, est: Estudiante, tipo: TipoCertificado, anio: number | null, hoy: string): Promise<CamposCertificado> {
+export async function camposIniciales(admin: SupabaseClient, est: Estudiante, tipo: TipoCertificado, anio: number | null, hoy: string, conCostos = false): Promise<CamposCertificado> {
   const activo = await anioActivo(admin)
   const { grado, nivel } = await gradoEnAnio(admin, est, tipo, anio, activo)
+  const costos = tipo === 'estudio' && conCostos
   return {
     fecha: hoy,
     nombre: est.fullName,
@@ -149,6 +155,8 @@ export async function camposIniciales(admin: SupabaseClient, est: Estudiante, ti
     grado,
     nivel,
     anio: tipo === 'estudio' ? null : anio,
+    matricula: costos ? est.tuitionFee : null,
+    pension: costos ? est.monthlyFee : null,
   }
 }
 
@@ -328,3 +336,54 @@ export const escaparHtml =(s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp
 
 // Solo acepta correos con forma válida
 export const esCorreo = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.trim())
+
+// ---------- Borrador ----------
+
+export type FilaSolicitud = {
+  type_code: TipoCertificado, cert_year: number | null, status: string, student_profile_id: string | null, alumni_id: number | null,
+  student_name: string, doc_type: string | null, doc_number: string | null, include_costs: boolean | null,
+  fields: Partial<CamposCertificado> | null, grades_table: FilaNotas[] | null,
+}
+
+export type OrigenNotas = 'plataforma' | 'historial' | 'manual' | 'guardado'
+
+// Datos del certificado tal como saldrían hoy: los del sistema, con lo que la rectora ya corrigió encima.
+// Es lo mismo que ve la rectora en el detalle y el acudiente en el borrador.
+export async function armarBorrador(admin: SupabaseClient, r: FilaSolicitud) {
+  const est = r.student_profile_id ? await cargarEstudiante(admin, r.student_profile_id) : null
+  const { data: alumno } = r.alumni_id ? await admin.from('alumni').select('*').eq('id', r.alumni_id).maybeSingle() : { data: null }
+
+  let campos: CamposCertificado
+  let formato: FormatoNotas
+  if (est) {
+    campos = await camposIniciales(admin, est, r.type_code, r.cert_year, hoyISO(), !!r.include_costs)
+    formato = r.type_code === 'notas' && campos.nivel ? formatoDeCurso(null, campos.nivel) : formatoDeEstudiante(est)
+  } else {
+    const grado = alumno?.last_grade ?? ''
+    campos = {
+      fecha: hoyISO(), nombre: r.student_name, tipoDocumento: r.doc_type ?? alumno?.doc_type ?? 'Tarjeta de Identidad',
+      numeroDocumento: r.doc_number ?? alumno?.doc_number ?? '', ciudadDocumento: '', grado, nivel: nivelDeGrado(grado),
+      anio: r.type_code === 'estudio' ? null : r.cert_year,
+    }
+    formato = formatoDeCurso(alumno?.last_course ?? null, nivelDeGrado(grado))
+  }
+  // Lo que la rectora ya corrigió tiene prioridad sobre los datos del sistema
+  if (r.fields) campos = { ...campos, ...r.fields, fecha: r.status === 'sent' ? r.fields.fecha ?? campos.fecha : hoyISO() }
+
+  let notas: FilaNotas[] | null = null
+  let origenNotas: OrigenNotas | null = null
+  if (r.type_code === 'notas') {
+    if (Array.isArray(r.grades_table) && r.grades_table.length) {
+      notas = r.grades_table
+      origenNotas = 'guardado'
+    } else if (est && r.cert_year) {
+      const n = await notasParaCertificado(admin, est, r.cert_year, formato)
+      notas = n.filas
+      origenNotas = n.origen
+    } else {
+      notas = plantillaNotas(formato)
+      origenNotas = 'manual'
+    }
+  }
+  return { est, alumno, campos, formato, notas, origenNotas }
+}

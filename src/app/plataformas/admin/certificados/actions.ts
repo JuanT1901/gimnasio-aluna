@@ -3,11 +3,11 @@
 import { verificarRol } from 'app/utils/supabase/auth-check'
 import { hoyISO } from 'app/utils/horario/comun'
 import {
-  type CamposCertificado, type Colegio, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
-  GRADOS_OFICIALES, METODOS_PAGO, formatoDeCurso, nivelDeGrado, ordenarNotas, plantillaNotas,
+  type CamposCertificado, type Colegio, type EstadoRevision, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
+  GRADOS_OFICIALES, METODOS_PAGO, formatoDeCurso, nivelDeGrado, ordenarNotas,
 } from 'app/utils/certificados/comun'
 import {
-  getAdmin, cargarColegio, cargarTipos, cargarEstudiante, camposIniciales, notasParaCertificado, formatoDeEstudiante,
+  type FilaSolicitud, type OrigenNotas, getAdmin, cargarColegio, cargarTipos, armarBorrador,
   subirArchivo, enlaceTemporal, descargarArchivo, leerImagenPublica, codigoVerificacion, enviarCorreo, escaparHtml, esCorreo,
 } from 'app/utils/certificados/servidor'
 import { generarPdfCertificado } from 'app/utils/certificados/pdf'
@@ -32,6 +32,8 @@ export type ResumenSolicitud = {
   registered: boolean
   nueva: boolean
   createdAt: string
+  reviewStatus: EstadoRevision
+  impreso: boolean
 }
 
 export async function contarSolicitudesNuevas() {
@@ -48,7 +50,7 @@ export async function obtenerSolicitudes(): Promise<{ exito: boolean, error?: st
   const admin = getAdmin()
   const { data, error } = await admin
     .from('certificate_requests')
-    .select('id, code, type_code, cert_year, student_name, student_profile_id, alumni_id, requester_name, status, proof_via, payment_method, origin, registered, admin_seen_at, created_at')
+    .select('id, code, type_code, cert_year, student_name, student_profile_id, alumni_id, requester_name, status, proof_via, payment_method, origin, registered, admin_seen_at, created_at, review_status, deliver_printed')
     .order('created_at', { ascending: false })
     .limit(300)
   if (error) return { exito: false, error: error.message }
@@ -74,6 +76,8 @@ export async function obtenerSolicitudes(): Promise<{ exito: boolean, error?: st
       registered: r.registered,
       nueva: !r.admin_seen_at,
       createdAt: r.created_at,
+      reviewStatus: r.review_status ?? 'pending',
+      impreso: !!r.deliver_printed,
     })),
   }
 }
@@ -107,6 +111,14 @@ export type DetalleSolicitud = {
   requesterName: string
   requesterEmail: string
   requesterPhone: string | null
+  // El acudiente revisa el borrador antes del certificado final (solo en las solicitudes del portal)
+  pideRevision: boolean
+  reviewStatus: EstadoRevision
+  reviewComment: string | null
+  reviewedAt: string | null
+  porCorreo: boolean
+  impreso: boolean
+  incluyeCostos: boolean
   comment: string | null
   createdAt: string
   proofVia: 'upload' | 'whatsapp' | null
@@ -122,7 +134,7 @@ export type DetalleSolicitud = {
   campos: CamposCertificado
   formato: FormatoNotas
   notas: FilaNotas[] | null
-  origenNotas: 'plataforma' | 'historial' | 'manual' | 'guardado' | null
+  origenNotas: OrigenNotas | null
   colegio: Colegio
   firmaUrl: string | null
 }
@@ -131,42 +143,9 @@ async function armarDetalle(admin: Admin, id: number): Promise<DetalleSolicitud 
   const { data: r } = await admin.from('certificate_requests').select('*').eq('id', id).maybeSingle()
   if (!r) return null
 
-  const [colegio, tipos] = await Promise.all([cargarColegio(admin), cargarTipos(admin)])
-  const est = r.student_profile_id ? await cargarEstudiante(admin, r.student_profile_id) : null
-  const { data: alumno } = r.alumni_id ? await admin.from('alumni').select('*').eq('id', r.alumni_id).maybeSingle() : { data: null }
-
-  let campos: CamposCertificado
-  let formato: FormatoNotas
-  if (est) {
-    campos = await camposIniciales(admin, est, r.type_code, r.cert_year, hoyISO())
-    formato = r.type_code === 'notas' && campos.nivel ? formatoDeCurso(null, campos.nivel) : formatoDeEstudiante(est)
-  } else {
-    const grado = alumno?.last_grade ?? ''
-    campos = {
-      fecha: hoyISO(), nombre: r.student_name, tipoDocumento: r.doc_type ?? alumno?.doc_type ?? 'Tarjeta de Identidad',
-      numeroDocumento: r.doc_number ?? alumno?.doc_number ?? '', ciudadDocumento: '', grado, nivel: nivelDeGrado(grado),
-      anio: r.type_code === 'estudio' ? null : r.cert_year,
-    }
-    formato = formatoDeCurso(alumno?.last_course ?? null, nivelDeGrado(grado))
-  }
-  // Lo que la rectora ya corrigió tiene prioridad sobre los datos del sistema
-  if (r.fields) campos = { ...campos, ...r.fields, fecha: r.status === 'sent' ? r.fields.fecha ?? campos.fecha : hoyISO() }
-
-  let notas: FilaNotas[] | null = null
-  let origenNotas: DetalleSolicitud['origenNotas'] = null
-  if (r.type_code === 'notas') {
-    if (Array.isArray(r.grades_table) && r.grades_table.length) {
-      notas = r.grades_table
-      origenNotas = 'guardado'
-    } else if (est && r.cert_year) {
-      const n = await notasParaCertificado(admin, est, r.cert_year, formato)
-      notas = n.filas
-      origenNotas = n.origen
-    } else {
-      notas = plantillaNotas(formato)
-      origenNotas = 'manual'
-    }
-  }
+  const [colegio, tipos, { est, alumno, campos, formato, notas, origenNotas }] = await Promise.all([
+    cargarColegio(admin), cargarTipos(admin), armarBorrador(admin, r as FilaSolicitud),
+  ])
 
   const [proofUrl, pdfUrl, firmaUrl] = await Promise.all([
     enlaceTemporal(admin, r.proof_path), enlaceTemporal(admin, r.pdf_path), enlaceTemporal(admin, colegio.signaturePath),
@@ -176,7 +155,9 @@ async function armarDetalle(admin: Admin, id: number): Promise<DetalleSolicitud 
     id: r.id, code: r.code, tipo: r.type_code, tipoNombre: tipos.find(t => t.code === r.type_code)?.name ?? r.type_code,
     status: r.status, origin: r.origin, registered: r.registered, studentName: r.student_name,
     course: est?.courseName ?? (alumno ? `Exalumno${alumno.exit_year ? ` (${alumno.exit_year})` : ''}` : null),
-    requesterName: r.requester_name, requesterEmail: r.requester_email, requesterPhone: r.requester_phone, comment: r.comment,
+    requesterName: r.requester_name, requesterEmail: r.requester_email ?? '', requesterPhone: r.requester_phone, comment: r.comment,
+    pideRevision: r.origin === 'portal', reviewStatus: r.review_status ?? 'pending', reviewComment: r.review_comment, reviewedAt: r.reviewed_at,
+    porCorreo: r.deliver_email !== false, impreso: !!r.deliver_printed, incluyeCostos: !!r.include_costs,
     createdAt: r.created_at, proofVia: r.proof_via, proofAt: r.proof_at, proofUrl, proofIsPdf: (r.proof_path ?? '').endsWith('.pdf'),
     adminMessage: r.admin_message, paymentMethod: r.payment_method, sentAt: r.sent_at, sentTo: r.sent_to,
     verificationCode: r.verification_code, pdfUrl, campos, formato, notas, origenNotas, colegio, firmaUrl,
@@ -201,7 +182,14 @@ function limpiarCampos(c: CamposCertificado): CamposCertificado {
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(c.fecha) ? c.fecha : hoyISO(),
     nombre: t(c.nombre), tipoDocumento: t(c.tipoDocumento), numeroDocumento: t(c.numeroDocumento), ciudadDocumento: t(c.ciudadDocumento),
     grado: t(c.grado), nivel: t(c.nivel), anio: c.anio ? Number(c.anio) || null : null,
+    matricula: valorPesos(c.matricula), pension: valorPesos(c.pension),
   }
+}
+
+function valorPesos(v: unknown) {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return isNaN(n) || n < 0 ? null : Math.round(n)
 }
 
 function limpiarNotas(filas: FilaNotas[] | null) {
@@ -217,12 +205,15 @@ export async function guardarDatosCertificado(id: number, campos: CamposCertific
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
 
-  const { error } = await getAdmin()
+  const admin = getAdmin()
+  const { error } = await admin
     .from('certificate_requests')
     .update({ fields: limpiarCampos(campos), grades_table: limpiarNotas(notas), updated_at: new Date().toISOString() })
     .eq('id', id)
     .neq('status', 'sent')
   if (error) return { exito: false, error: error.message }
+  // Si el acudiente pidió una corrección, vuelve a revisar el borrador ya corregido
+  await admin.from('certificate_requests').update({ review_status: 'pending' }).eq('id', id).eq('review_status', 'changes_requested')
   return { exito: true }
 }
 
@@ -315,13 +306,16 @@ function correoCertificado(d: { solicitante: string, estudiante: string, tipo: s
 export async function generarYEnviar(id: number, datos: { campos: CamposCertificado, notas: FilaNotas[] | null, formato: FormatoNotas, correo: string }) {
   const { autorizado, error: authError, userId } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
-  if (!esCorreo(datos.correo)) return { exito: false, error: 'El correo de destino no es válido.' }
 
   const admin = getAdmin()
-  const { data: r } = await admin.from('certificate_requests').select('status, student_name, requester_name, payment_method').eq('id', id).maybeSingle()
+  const { data: r } = await admin.from('certificate_requests')
+    .select('status, student_name, requester_name, payment_method, origin, review_status, deliver_email').eq('id', id).maybeSingle()
   if (!r) return { exito: false, error: 'La solicitud no existe.' }
   if (r.status === 'sent') return { exito: false, error: 'Este certificado ya fue enviado.' }
+  if (r.origin === 'portal' && r.review_status !== 'confirmed') return { exito: false, error: 'El acudiente aún no ha confirmado que los datos del borrador son correctos.' }
   if (!r.payment_method) return { exito: false, error: 'Primero confirma que el pago fue recibido.' }
+  const porCorreo = r.deliver_email !== false
+  if (porCorreo && !esCorreo(datos.correo)) return { exito: false, error: 'El correo de destino no es válido.' }
 
   const colegio = await cargarColegio(admin)
   if (!colegio.signaturePath) return { exito: false, error: 'Falta cargar la firma de la rectora en Certificados → Configuración.' }
@@ -338,19 +332,22 @@ export async function generarYEnviar(id: number, datos: { campos: CamposCertific
   const errorSubida = await subirArchivo(admin, ruta, armado.pdf, 'application/pdf')
   if (errorSubida) return { exito: false, error: `No se pudo guardar el PDF: ${errorSubida}` }
 
-  const tipos = await cargarTipos(admin)
-  const nombreTipo = tipos.find(t => t.code === armado.tipo)?.name ?? 'Certificado'
-  const envio = await enviarCorreo({
-    para: datos.correo.trim(),
-    asunto: `${nombreTipo} – ${r.student_name} (${armado.code})`,
-    html: correoCertificado({ solicitante: r.requester_name, estudiante: r.student_name, tipo: nombreTipo, codigo: armado.code, verificacion, colegio }),
-    adjunto: { nombre: `${nombreTipo} - ${r.student_name}.pdf`, contenido: armado.pdf },
-  })
-  if (!envio.exito) return { exito: false, error: envio.error }
+  // Si solo lo pidieron impreso, queda el PDF final para imprimirlo y no se envía correo
+  if (porCorreo) {
+    const tipos = await cargarTipos(admin)
+    const nombreTipo = tipos.find(t => t.code === armado.tipo)?.name ?? 'Certificado'
+    const envio = await enviarCorreo({
+      para: datos.correo.trim(),
+      asunto: `${nombreTipo} – ${r.student_name} (${armado.code})`,
+      html: correoCertificado({ solicitante: r.requester_name, estudiante: r.student_name, tipo: nombreTipo, codigo: armado.code, verificacion, colegio }),
+      adjunto: { nombre: `${nombreTipo} - ${r.student_name}.pdf`, contenido: armado.pdf },
+    })
+    if (!envio.exito) return { exito: false, error: envio.error }
+  }
 
   const ahora = new Date().toISOString()
   const { error } = await admin.from('certificate_requests').update({
-    status: 'sent', sent_at: ahora, sent_to: datos.correo.trim(), sent_by: userId,
+    status: 'sent', sent_at: ahora, sent_to: porCorreo ? datos.correo.trim() : null, sent_by: userId,
     verification_code: verificacion, pdf_path: ruta, fields: limpiarCampos(datos.campos), grades_table: limpiarNotas(datos.notas),
     admin_message: null, updated_at: ahora,
   }).eq('id', id)
@@ -365,6 +362,7 @@ export async function reenviarCertificado(id: number) {
   const admin = getAdmin()
   const { data: r } = await admin.from('certificate_requests').select('code, type_code, status, student_name, requester_name, sent_to, pdf_path, verification_code').eq('id', id).maybeSingle()
   if (!r || r.status !== 'sent' || !r.pdf_path) return { exito: false, error: 'Este certificado aún no se ha enviado.' }
+  if (!r.sent_to) return { exito: false, error: 'Este certificado se pidió solo impreso; no tiene correo de destino.' }
 
   const [pdf, colegio, tipos] = await Promise.all([descargarArchivo(admin, r.pdf_path), cargarColegio(admin), cargarTipos(admin)])
   if (!pdf) return { exito: false, error: 'No se encontró el PDF guardado.' }
@@ -443,7 +441,10 @@ export async function registrarExalumnoDeSolicitud(id: number, ultimoGrado: stri
 
 // ================= CONFIGURACIÓN =================
 
-export type CursoConfig = { id: number, name: string, officialGrade: string, officialLevel: string, nextGradeId: number | null, isFinal: boolean }
+export type CursoConfig = {
+  id: number, name: string, officialGrade: string, officialLevel: string, nextGradeId: number | null, isFinal: boolean,
+  tuitionFee: number | null, monthlyFee: number | null,
+}
 
 export async function obtenerConfiguracion(): Promise<{ exito: boolean, error?: string, colegio?: Colegio, tipos?: TipoConfig[], cursos?: CursoConfig[], firmaUrl?: string | null }> {
   const { autorizado, error: authError } = await verificarRol('admin')
@@ -452,13 +453,14 @@ export async function obtenerConfiguracion(): Promise<{ exito: boolean, error?: 
   const admin = getAdmin()
   const [colegio, tipos, { data: cursos }] = await Promise.all([
     cargarColegio(admin), cargarTipos(admin),
-    admin.from('grades').select('id, name, official_grade, official_level, next_grade_id, is_final_grade').order('order_index', { ascending: true }),
+    admin.from('grades').select('id, name, official_grade, official_level, next_grade_id, is_final_grade, tuition_fee, monthly_fee').order('order_index', { ascending: true }),
   ])
   return {
     exito: true, colegio, tipos,
     cursos: (cursos || []).map(c => ({
       id: c.id, name: c.name, officialGrade: c.official_grade ?? '', officialLevel: c.official_level ?? '',
       nextGradeId: c.next_grade_id ?? null, isFinal: !!c.is_final_grade,
+      tuitionFee: c.tuition_fee == null ? null : Number(c.tuition_fee), monthlyFee: c.monthly_fee == null ? null : Number(c.monthly_fee),
     })),
     firmaUrl: await enlaceTemporal(admin, colegio.signaturePath),
   }
@@ -501,6 +503,7 @@ export async function guardarConfiguracion(datos: { colegio: Colegio, tipos: Tip
     const { error: e } = await admin.from('grades').update({
       official_grade: grado || null, official_level: t(curso.officialLevel, 60) || (grado ? nivelDeGrado(grado) : null),
       next_grade_id: curso.isFinal ? null : curso.nextGradeId, is_final_grade: !!curso.isFinal,
+      tuition_fee: valorPesos(curso.tuitionFee), monthly_fee: valorPesos(curso.monthlyFee),
     }).eq('id', curso.id)
     if (e) return { exito: false, error: e.message }
   }
