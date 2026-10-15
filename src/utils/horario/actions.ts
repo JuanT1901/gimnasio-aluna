@@ -3,7 +3,7 @@
 import { type DatosHorario, esFechaISO, lunesDeSemana, sumarDias } from './comun'
 import {
   getAdmin, obtenerSesion, cargarCatalogo, cargarFranjas, cargarCasillas,
-  construirClases, cargarDiasSinClase, cargarPlaneaciones,
+  construirClases, cargarDiasSinClase, cargarPlaneaciones, cargarTurnosPuerta, clasesDePuerta,
 } from './servidor'
 
 export type ContextoHorario = {
@@ -75,8 +75,11 @@ export async function obtenerHorario(objetivo: ObjetivoHorario, semana: string):
     gradeIds = [...new Set((asignaciones || []).map(a => a.grade_id).filter(Boolean))]
   }
 
+  // El turno de puerta solo aparece en el horario del profesor que lo tiene, no en el de los cursos
+  const puerta = soloDocente ? clasesDePuerta(await cargarTurnosPuerta(admin), soloDocente) : []
+
   const vacio: DatosHorario = { weekStart: lunes, franjas: [], clases: [], planeaciones: [], diasSinClase: [] }
-  if (!gradeIds.length) return { exito: true, datos: vacio }
+  if (!gradeIds.length && !puerta.length) return { exito: true, datos: vacio }
 
   const [cat, franjas, casillas, diasSinClase, planeaciones] = await Promise.all([
     cargarCatalogo(admin, gradeIds),
@@ -87,7 +90,8 @@ export async function obtenerHorario(objetivo: ObjetivoHorario, semana: string):
   ])
 
   let clases = construirClases(casillas, franjas, cat)
-  if (soloDocente) clases = clases.filter(c => c.teacherId === soloDocente)
+  if (soloDocente) clases = [...clases.filter(c => c.teacherId === soloDocente), ...puerta]
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.start.localeCompare(b.start))
 
   const secciones = new Set([...cat.cursos.values()].map(c => c.section))
   const materiasVisibles = new Set(clases.map(c => `${c.gradeId}|${c.subjectId}`))
@@ -104,11 +108,19 @@ export async function obtenerHorario(objetivo: ObjetivoHorario, semana: string):
       adminEdited: p.adminEdited,
     }))
 
+  // Si el turno no coincide con una franja visible (preescolar termina a la 1), se agrega su fila
+  const visiblesFranjas = franjas.filter(f => secciones.has(f.section))
+  for (const p of puerta) {
+    if (!visiblesFranjas.some(f => f.start === p.start && f.end === p.end)) {
+      visiblesFranjas.push({ id: -p.dayOfWeek, section: 'preescolar', start: p.start, end: p.end, isBreak: false })
+    }
+  }
+
   return {
     exito: true,
     datos: {
       weekStart: lunes,
-      franjas: franjas.filter(f => secciones.has(f.section)),
+      franjas: visiblesFranjas,
       clases,
       planeaciones: visibles,
       diasSinClase,

@@ -118,7 +118,7 @@ export default function FinDeAnioPage() {
 
         <div className={c.noteBox} style={{ background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155' }}>
           <strong style={{ color: '#64748b' }}>Cómo se sugiere</strong>
-          El sistema propone «pasa de curso» a todos, salvo a quien tenga {datos.reglas.areasParaRepetir} o más áreas con definitiva menor a {datos.reglas.notaMinima.toFixed(1)}; esos quedan «por revisar». En preescolar nunca se sugiere repetir. La regla se cambia en Certificados → Configuración.
+          El sistema propone «pasa de curso» a todos, salvo a quien tenga {datos.reglas.areasParaRepetir} o más áreas con definitiva menor a {datos.reglas.notaMinima.toFixed(1)}; esos quedan «por revisar». En preescolar nunca se sugiere repetir. La regla se cambia en Fin de año → Configuración.
         </div>
 
         {datos.cursos.length === 0 ? <div className={h.empty}>No hay estudiantes con curso asignado.</div> : (

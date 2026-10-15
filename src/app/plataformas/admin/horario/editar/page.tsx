@@ -10,9 +10,11 @@ import { estiloMateria } from 'app/components/horario/HorarioSemanal'
 import { obtenerContextoHorario } from 'app/utils/horario/actions'
 import { type Franja, type Seccion, DIAS, NOMBRE_SECCION, formatoHora, rangoHoras, seSolapan } from 'app/utils/horario/comun'
 import {
-  obtenerEditorHorario, guardarHorarioCurso, guardarFranjas,
+  obtenerEditorHorario, guardarHorarioCurso, guardarFranjas, obtenerTurnosPuerta, guardarTurnosPuerta,
   type CasillaEditor, type FranjaEditable, type MateriaEditor, type Ocupacion,
 } from '../actions'
+
+type Turno = { dayOfWeek: number, teacherId: string | null, start: string, end: string }
 
 const DIRECCION_DE_GRUPO = 'Dirección de grupo'
 const OTRA = '__otra'
@@ -42,11 +44,24 @@ function EditorHorario() {
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [docentes, setDocentes] = useState<{ id: string, name: string }[]>([])
+  const [turnos, setTurnos] = useState<Turno[]>([])
+  const [turnosOriginal, setTurnosOriginal] = useState('')
+
+  useEffect(() => {
+    obtenerTurnosPuerta().then(r => {
+      if (!r.exito || !r.turnos) return
+      const lista = r.turnos.map(t => ({ dayOfWeek: t.dayOfWeek, teacherId: t.teacherId, start: t.start, end: t.end }))
+      setTurnos(lista)
+      setTurnosOriginal(JSON.stringify(lista))
+    })
+  }, [])
 
   useEffect(() => {
     obtenerContextoHorario().then(r => {
       if (!r.contexto) { setError(r.error ?? 'No se pudo cargar la información.'); setCargando(false); return }
       setCursos(r.contexto.cursos)
+      setDocentes(r.contexto.docentes)
       const pedido = Number(searchParams.get('curso'))
       setCursoId(r.contexto.cursos.some(c => c.id === pedido) ? pedido : r.contexto.cursos[0]?.id ?? null)
       if (!r.contexto.cursos.length) setCargando(false)
@@ -184,6 +199,17 @@ function EditorHorario() {
   const franjasGuardadas = editor?.franjas ?? []
   const esChoque = (dia: number, slotId: number) => choques.some(c => c.dia === dia && c.franja.id === slotId)
 
+  const cambiarTurno = (dia: number, cambios: Partial<Turno>) => setTurnos(turnos.map(t => (t.dayOfWeek === dia ? { ...t, ...cambios } : t)))
+
+  const guardarTurnos = async () => {
+    setGuardando(true)
+    const r = await guardarTurnosPuerta(turnos)
+    setGuardando(false)
+    if (!r.exito) { alert(r.error); return }
+    setTurnosOriginal(JSON.stringify(turnos))
+    setMensaje('Turnos de puerta guardados.')
+  }
+
   return (
     <main className={styles.mainContent}>
       <header className={styles.header} style={{ marginBottom: '24px' }}>
@@ -291,6 +317,31 @@ function EditorHorario() {
             <button type="button" className={`${h.btn} ${h.btnDark} ${h.btnSm}`} disabled={!cambiosFranjas || cambiosHorario || guardando} onClick={guardarLasFranjas}>
               Guardar franjas
             </button>
+
+            {editor.curso.section === 'preescolar' && turnos.length > 0 && (
+              <>
+                <h3 style={{ marginTop: '18px' }}>Turno de puerta</h3>
+                <p>El profesor que entrega a los niños cada día. Le aparece «Puerta» en su horario; a los estudiantes no.</p>
+                <div className={h.slotList}>
+                  {turnos.map(t => (
+                    <div key={t.dayOfWeek} className={h.field}>
+                      {DIAS[t.dayOfWeek - 1]}
+                      <select className={h.select} value={t.teacherId ?? ''} onChange={e => cambiarTurno(t.dayOfWeek, { teacherId: e.target.value || null })}>
+                        <option value="">— Sin asignar —</option>
+                        {docentes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                      <div className={h.slotRow}>
+                        <input type="time" value={t.start} onChange={e => cambiarTurno(t.dayOfWeek, { start: e.target.value })} aria-label={`Inicio del turno del ${DIAS[t.dayOfWeek - 1]}`} />
+                        <input type="time" value={t.end} onChange={e => cambiarTurno(t.dayOfWeek, { end: e.target.value })} aria-label={`Fin del turno del ${DIAS[t.dayOfWeek - 1]}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className={`${h.btn} ${h.btnDark} ${h.btnSm}`} disabled={JSON.stringify(turnos) === turnosOriginal || guardando} onClick={guardarTurnos}>
+                  Guardar turnos
+                </button>
+              </>
+            )}
           </aside>
         </div>
       )}

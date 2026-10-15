@@ -26,6 +26,7 @@ export async function cargarColegio(admin: SupabaseClient): Promise<Colegio> {
     institutionName: s?.institution_name ?? 'Ludo Club Aventuras Creativas',
     city: s?.city ?? 'Zipaquirá',
     scheduleText: s?.schedule_text ?? 'lunes a viernes de 7:00 a.m. a 2:00 p.m.',
+    scheduleTextPreschool: s?.schedule_text_preschool ?? 'lunes a viernes de 7:00 a.m. a 1:00 p.m.',
     calendar: s?.calendar ?? 'A',
     resolutionText: s?.resolution_text ?? '',
     daneText: s?.dane_text ?? '',

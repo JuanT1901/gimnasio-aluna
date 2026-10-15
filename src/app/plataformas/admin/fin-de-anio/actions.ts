@@ -1,7 +1,7 @@
 'use server'
 
 import { verificarRol } from 'app/utils/supabase/auth-check'
-import { type ResultadoAnio, areasPerdidas, formatoDeCurso, promedio, siguienteGrado } from 'app/utils/certificados/comun'
+import { type ResultadoAnio, GRADOS_OFICIALES, areasPerdidas, formatoDeCurso, nivelDeGrado, promedio, siguienteGrado } from 'app/utils/certificados/comun'
 import { getAdmin, cargarColegio, anioActivo, notasActuales } from 'app/utils/certificados/servidor'
 
 export type EstudianteFin = {
@@ -108,7 +108,7 @@ export async function cerrarAnio(decisiones: Decision[], confirmacion: string) {
     const d = porId.get(e.id)!
     if (!['promoted', 'repeat', 'left', 'graduated'].includes(d.result)) return { exito: false, error: 'Hay una decisión no válida.' }
     if (d.result === 'promoted' && (!d.nextGradeId || !cursoPorId.has(d.nextGradeId))) {
-      return { exito: false, error: 'Hay estudiantes que pasan de curso sin un curso de destino. Revisa «Pasan a» en Configuración de certificados.' }
+      return { exito: false, error: 'Hay estudiantes que pasan de curso sin un curso de destino. Revisa «Pasan a» en Fin de año → Configuración.' }
     }
     const curso = cursoPorId.get(e.grade_id)
     const preescolar = formatoDeCurso(null, curso?.official_level) === 'preescolar'
@@ -137,5 +137,58 @@ export async function deshacerCierre(anio: number) {
 
   const { error } = await getAdmin().rpc('deshacer_cierre_anio', { p_year: anio })
   if (error) return { exito: false, error: error.message }
+  return { exito: true }
+}
+
+// ================= CONFIGURACIÓN =================
+
+// Grado oficial y curso siguiente: los usan el paso de año y los certificados
+export type CursoGrado = { id: number, name: string, officialGrade: string, officialLevel: string, nextGradeId: number | null, isFinal: boolean }
+export type ReglaPromocion = { notaMinima: number, areasParaRepetir: number }
+
+export async function obtenerConfiguracionFin(): Promise<{ exito: boolean, error?: string, regla?: ReglaPromocion, cursos?: CursoGrado[] }> {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const admin = getAdmin()
+  const [colegio, { data: cursos, error }] = await Promise.all([
+    cargarColegio(admin),
+    admin.from('grades').select('id, name, official_grade, official_level, next_grade_id, is_final_grade').order('order_index', { ascending: true }),
+  ])
+  if (error) return { exito: false, error: error.message }
+  return {
+    exito: true,
+    regla: { notaMinima: colegio.promotionMinGrade, areasParaRepetir: colegio.promotionMaxLostAreas },
+    cursos: (cursos || []).map(c => ({
+      id: c.id, name: c.name, officialGrade: c.official_grade ?? '', officialLevel: c.official_level ?? '',
+      nextGradeId: c.next_grade_id ?? null, isFinal: !!c.is_final_grade,
+    })),
+  }
+}
+
+export async function guardarConfiguracionFin(datos: { regla: ReglaPromocion, cursos: CursoGrado[] }) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const minima = Number(datos.regla.notaMinima)
+  const maxAreas = Number(datos.regla.areasParaRepetir)
+  if (isNaN(minima) || minima < 1 || minima > 5) return { exito: false, error: 'La nota mínima debe estar entre 1.0 y 5.0.' }
+  if (!Number.isInteger(maxAreas) || maxAreas < 1 || maxAreas > 20) return { exito: false, error: 'La cantidad de áreas perdidas debe ser un número entre 1 y 20.' }
+
+  const admin = getAdmin()
+  const { error } = await admin.from('school_settings')
+    .update({ promotion_min_grade: minima, promotion_max_lost_areas: maxAreas, updated_at: new Date().toISOString() }).eq('id', 1)
+  if (error) return { exito: false, error: error.message }
+
+  const t = (v: string | null | undefined, max: number) => (v ?? '').trim().slice(0, max)
+  for (const curso of datos.cursos) {
+    const grado = t(curso.officialGrade, 40)
+    if (grado && !GRADOS_OFICIALES.includes(grado)) return { exito: false, error: `El grado de «${curso.name}» no es válido.` }
+    const { error: e } = await admin.from('grades').update({
+      official_grade: grado || null, official_level: t(curso.officialLevel, 60) || (grado ? nivelDeGrado(grado) : null),
+      next_grade_id: curso.isFinal ? null : curso.nextGradeId, is_final_grade: !!curso.isFinal,
+    }).eq('id', curso.id)
+    if (e) return { exito: false, error: e.message }
+  }
   return { exito: true }
 }

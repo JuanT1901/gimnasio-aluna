@@ -5,7 +5,7 @@ import { FaCog, FaSave, FaSpinner, FaUpload } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
-import { type Colegio, type TipoConfig, GRADOS_OFICIALES, NIVELES, nivelDeGrado } from 'app/utils/certificados/comun'
+import { type Colegio, type TipoConfig } from 'app/utils/certificados/comun'
 import { obtenerConfiguracion, guardarConfiguracion, subirFirma, type CursoConfig } from '../actions'
 
 type CampoTexto = { [K in keyof Colegio]: Colegio[K] extends string | null ? K : never }[keyof Colegio]
@@ -91,10 +91,10 @@ export default function ConfiguracionCertificadosPage() {
             <tbody>
               {tipos.map(t => (
                 <tr key={t.code}>
-                  <td><b>{t.name}</b></td>
-                  <td><textarea className={h.input} rows={2} value={t.description}
+                  <td style={{ whiteSpace: 'nowrap' }}><b>{t.name}</b></td>
+                  <td style={{ width: '60%', minWidth: '280px' }}><textarea className={h.input} rows={3} style={{ width: '100%', resize: 'vertical' }} value={t.description}
                     onChange={e => setTipos(tipos.map(x => (x.code === t.code ? { ...x, description: e.target.value } : x)))} /></td>
-                  <td style={{ width: '150px' }}><input type="number" min={0} step={500} placeholder="Por definir" value={t.price ?? ''}
+                  <td style={{ minWidth: '170px' }}><input type="number" min={0} step={500} placeholder="Por definir" value={t.price ?? ''}
                     onChange={e => setTipos(tipos.map(x => (x.code === t.code ? { ...x, price: e.target.value === '' ? null : Number(e.target.value) } : x)))} /></td>
                   <td><input type="checkbox" checked={t.active} aria-label={`${t.name} activo`}
                     onChange={e => setTipos(tipos.map(x => (x.code === t.code ? { ...x, active: e.target.checked } : x)))} /></td>
@@ -130,7 +130,8 @@ export default function ConfiguracionCertificadosPage() {
             {texto('signerShort', 'Nombre bajo la firma')}
             {texto('signerTitle', 'Cargo')}
             {texto('institutionName', 'Institución')}
-            {texto('scheduleText', 'Horario')}
+            {texto('scheduleText', 'Horario (primaria y bachillerato)')}
+            {texto('scheduleTextPreschool', 'Horario (preescolar)')}
             {texto('calendar', 'Calendario')}
             {texto('city', 'Ciudad')}
           </section>
@@ -145,40 +146,22 @@ export default function ConfiguracionCertificadosPage() {
             {texto('addressLine1', 'Dirección')}
             {texto('addressLine2', 'Barrio y ciudad')}
           </section>
-
-          <section className={c.panel}>
-            <h3>Regla de promoción (Fin de año)</h3>
-            <p>Se usa para sugerir quién repite. La decisión final siempre es de la rectora.</p>
-            <label className={h.field}>Nota mínima para aprobar un área
-              <input className={h.input} type="number" step={0.1} min={1} max={5} value={colegio.promotionMinGrade} onChange={e => setColegio({ ...colegio, promotionMinGrade: Number(e.target.value) })} /></label>
-            <label className={h.field}>Áreas perdidas para repetir
-              <input className={h.input} type="number" min={1} max={20} value={colegio.promotionMaxLostAreas} onChange={e => setColegio({ ...colegio, promotionMaxLostAreas: Number(e.target.value) })} />
-              <small style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>Con esta cantidad o más de áreas perdidas se sugiere que el estudiante repita. En preescolar nunca se sugiere repetir.</small></label>
-          </section>
         </div>
 
         <section className={c.panel}>
-          <h3>Cursos: grado oficial, costos y curso siguiente</h3>
-          <p>El certificado dice el grado oficial (ej. «Quinto de educación básica primaria»), no el nombre del curso. El curso siguiente es a donde pasan los estudiantes en «Fin de año». Si un curso tiene estudiantes de dos grados, deja el grado del curso y corrígelo en cada certificado. La matrícula y la pensión aparecen en el certificado de estudio cuando el acudiente las pide.</p>
+          <h3>Cursos: matrícula y pensión</h3>
+          <p>Aparecen en el certificado de estudio cuando el acudiente pide incluir los costos. En cada solicitud se pueden corregir antes de enviarlo. El grado oficial y el curso siguiente se configuran en Fin de año → Configuración.</p>
           <div className={c.tblWrap}>
             <table className={c.tbl}>
-              <thead><tr><th>Curso</th><th>Grado oficial</th><th>Nivel</th><th>Matrícula (COP)</th><th>Pensión mensual (COP)</th><th>Pasan a</th><th>Último curso</th></tr></thead>
+              <thead><tr><th>Curso</th><th>Matrícula (COP)</th><th>Pensión mensual (COP)</th></tr></thead>
               <tbody>
                 {cursos.map(x => (
                   <tr key={x.id}>
                     <td><b>{x.name}</b></td>
-                    <td><select value={x.officialGrade} onChange={e => cambiarCurso(x.id, { officialGrade: e.target.value, officialLevel: nivelDeGrado(e.target.value) })}>
-                      <option value="">—</option>{GRADOS_OFICIALES.map(g => <option key={g}>{g}</option>)}</select></td>
-                    <td><select value={x.officialLevel} onChange={e => cambiarCurso(x.id, { officialLevel: e.target.value })}>
-                      <option value="">—</option>{NIVELES.map(n => <option key={n}>{n}</option>)}</select></td>
-                    <td style={{ width: '140px' }}><input type="number" min={0} step={1000} placeholder="—" value={x.tuitionFee ?? ''} aria-label={`Matrícula de ${x.name}`}
+                    <td><input type="number" min={0} step={1000} placeholder="—" value={x.tuitionFee ?? ''} aria-label={`Matrícula de ${x.name}`}
                       onChange={e => cambiarCurso(x.id, { tuitionFee: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                    <td style={{ width: '140px' }}><input type="number" min={0} step={1000} placeholder="—" value={x.monthlyFee ?? ''} aria-label={`Pensión mensual de ${x.name}`}
+                    <td><input type="number" min={0} step={1000} placeholder="—" value={x.monthlyFee ?? ''} aria-label={`Pensión mensual de ${x.name}`}
                       onChange={e => cambiarCurso(x.id, { monthlyFee: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                    <td><select value={x.nextGradeId ?? ''} disabled={x.isFinal} onChange={e => cambiarCurso(x.id, { nextGradeId: e.target.value ? Number(e.target.value) : null })}>
-                      <option value="">—</option>{cursos.filter(o => o.id !== x.id).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></td>
-                    <td style={{ textAlign: 'center' }}><input type="checkbox" checked={x.isFinal} aria-label={`${x.name} es el último curso`}
-                      onChange={e => cambiarCurso(x.id, { isFinal: e.target.checked, nextGradeId: e.target.checked ? null : x.nextGradeId })} /></td>
                   </tr>
                 ))}
               </tbody>

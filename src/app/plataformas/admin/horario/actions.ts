@@ -6,8 +6,8 @@ import {
   clavePlaneacion, esFechaISO, fechasDeSemana, lunesDeSemana, motivoSinClase, seSolapan, sumarDias,
 } from 'app/utils/horario/comun'
 import {
-  getAdmin, cargarCatalogo, cargarFranjas, cargarCasillas, construirClases,
-  cargarDiasSinClase, cargarPlaneaciones, docenteDe, notificarDocente,
+  type TurnoPuerta, getAdmin, cargarCatalogo, cargarFranjas, cargarCasillas, construirClases,
+  cargarDiasSinClase, cargarPlaneaciones, cargarTurnosPuerta, docenteDe, notificarDocente,
 } from 'app/utils/horario/servidor'
 
 const SECCIONES: Seccion[] = ['preescolar', 'general']
@@ -143,6 +143,36 @@ export async function guardarFranjas(seccion: Seccion, franjas: FranjaEditable[]
   if (descansos.length) await admin.from('schedule_entries').delete().in('slot_id', descansos)
 
   return { exito: true, franjas: await cargarFranjas(admin, [seccion]) }
+}
+
+// ================= TURNO DE PUERTA =================
+
+export async function obtenerTurnosPuerta(): Promise<{ exito: boolean, error?: string, turnos?: TurnoPuerta[] }> {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+  return { exito: true, turnos: await cargarTurnosPuerta(getAdmin()) }
+}
+
+export async function guardarTurnosPuerta(turnos: { dayOfWeek: number, teacherId: string | null, start: string, end: string }[]) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const filas = []
+  for (const t of turnos) {
+    if (!Number.isInteger(t.dayOfWeek) || t.dayOfWeek < 1 || t.dayOfWeek > 5) return { exito: false, error: 'Día no válido.' }
+    if (!esHora(t.start) || !esHora(t.end) || t.start >= t.end) return { exito: false, error: 'Revisa las horas del turno de puerta.' }
+    filas.push({ day_of_week: t.dayOfWeek, teacher_id: t.teacherId || null, start_time: t.start, end_time: t.end, updated_at: new Date().toISOString() })
+  }
+
+  const admin = getAdmin()
+  const ids = [...new Set(filas.map(f => f.teacher_id).filter(Boolean))] as string[]
+  if (ids.length) {
+    const { data } = await admin.from('profiles').select('id').eq('role', 'teacher').in('id', ids)
+    if ((data || []).length !== ids.length) return { exito: false, error: 'Uno de los profesores no es válido.' }
+  }
+  const { error } = await admin.from('door_duties').upsert(filas, { onConflict: 'day_of_week' })
+  if (error) return { exito: false, error: error.message }
+  return { exito: true }
 }
 
 // ================= PLANEACIÓN SEMANAL =================

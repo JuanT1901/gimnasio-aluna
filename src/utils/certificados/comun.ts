@@ -50,6 +50,7 @@ export type Colegio = {
   institutionName: string
   city: string
   scheduleText: string
+  scheduleTextPreschool: string // preescolar sale a la 1; la hora de puerta no cuenta para los estudiantes
   calendar: string
   resolutionText: string
   daneText: string
@@ -165,7 +166,8 @@ export function textoCertificado(tipo: TipoCertificado, c: CamposCertificado, co
     { t: c.nombre, b: true },
     { t: `, identificado con ${doc}, ` },
   ]
-  const horario = ` en un horario de ${col.scheduleText}, en calendario ${col.calendar}.`
+  const preescolar = normalizarTexto(c.nivel).includes('preescolar')
+  const horario = ` en un horario de ${preescolar ? col.scheduleTextPreschool : col.scheduleText}, en calendario ${col.calendar}.`
   const { dia, mes, anio } = fechaCierre(c.fecha)
   const cierre = `Se firma en ${col.city} por solicitud y para los fines que al interesado le convengan, a los ${dia} días del mes de ${mes} de ${anio}.`
 

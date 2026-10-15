@@ -4,7 +4,7 @@ import { verificarRol } from 'app/utils/supabase/auth-check'
 import { hoyISO } from 'app/utils/horario/comun'
 import {
   type CamposCertificado, type Colegio, type EstadoRevision, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
-  GRADOS_OFICIALES, METODOS_PAGO, formatoDeCurso, nivelDeGrado, ordenarNotas,
+  METODOS_PAGO, formatoDeCurso, ordenarNotas,
 } from 'app/utils/certificados/comun'
 import {
   type FilaSolicitud, type OrigenNotas, getAdmin, cargarColegio, cargarTipos, armarBorrador,
@@ -441,10 +441,8 @@ export async function registrarExalumnoDeSolicitud(id: number, ultimoGrado: stri
 
 // ================= CONFIGURACIÓN =================
 
-export type CursoConfig = {
-  id: number, name: string, officialGrade: string, officialLevel: string, nextGradeId: number | null, isFinal: boolean,
-  tuitionFee: number | null, monthlyFee: number | null,
-}
+// Costos de cada curso para el certificado de estudio (el grado oficial y el curso siguiente se configuran en Fin de año)
+export type CursoConfig = { id: number, name: string, tuitionFee: number | null, monthlyFee: number | null }
 
 export async function obtenerConfiguracion(): Promise<{ exito: boolean, error?: string, colegio?: Colegio, tipos?: TipoConfig[], cursos?: CursoConfig[], firmaUrl?: string | null }> {
   const { autorizado, error: authError } = await verificarRol('admin')
@@ -453,13 +451,12 @@ export async function obtenerConfiguracion(): Promise<{ exito: boolean, error?: 
   const admin = getAdmin()
   const [colegio, tipos, { data: cursos }] = await Promise.all([
     cargarColegio(admin), cargarTipos(admin),
-    admin.from('grades').select('id, name, official_grade, official_level, next_grade_id, is_final_grade, tuition_fee, monthly_fee').order('order_index', { ascending: true }),
+    admin.from('grades').select('id, name, tuition_fee, monthly_fee').order('order_index', { ascending: true }),
   ])
   return {
     exito: true, colegio, tipos,
     cursos: (cursos || []).map(c => ({
-      id: c.id, name: c.name, officialGrade: c.official_grade ?? '', officialLevel: c.official_level ?? '',
-      nextGradeId: c.next_grade_id ?? null, isFinal: !!c.is_final_grade,
+      id: c.id, name: c.name,
       tuitionFee: c.tuition_fee == null ? null : Number(c.tuition_fee), monthlyFee: c.monthly_fee == null ? null : Number(c.monthly_fee),
     })),
     firmaUrl: await enlaceTemporal(admin, colegio.signaturePath),
@@ -472,19 +469,15 @@ export async function guardarConfiguracion(datos: { colegio: Colegio, tipos: Tip
 
   const c = datos.colegio
   const t = (v: string | null | undefined, max = 300) => (v ?? '').trim().slice(0, max)
-  const minima = Number(c.promotionMinGrade)
-  const maxAreas = Number(c.promotionMaxLostAreas)
-  if (isNaN(minima) || minima < 1 || minima > 5) return { exito: false, error: 'La nota mínima debe estar entre 1.0 y 5.0.' }
-  if (!Number.isInteger(maxAreas) || maxAreas < 1 || maxAreas > 20) return { exito: false, error: 'La cantidad de áreas perdidas debe ser un número entre 1 y 20.' }
 
   const admin = getAdmin()
   const { error } = await admin.from('school_settings').update({
     signer_name: t(c.signerName), signer_short: t(c.signerShort), signer_title: t(c.signerTitle) || 'Rectora',
-    institution_name: t(c.institutionName), city: t(c.city), schedule_text: t(c.scheduleText), calendar: t(c.calendar, 5),
+    institution_name: t(c.institutionName), city: t(c.city), schedule_text: t(c.scheduleText), schedule_text_preschool: t(c.scheduleTextPreschool), calendar: t(c.calendar, 5),
     resolution_text: t(c.resolutionText, 500), dane_text: t(c.daneText), contact_phone: t(c.contactPhone), contact_email: t(c.contactEmail),
     website: t(c.website), address_line1: t(c.addressLine1), address_line2: t(c.addressLine2),
     whatsapp_number: t(c.whatsappNumber).replace(/\D/g, ''), bank_info: t(c.bankInfo, 1000) || null, cash_info: t(c.cashInfo, 1000) || null,
-    promotion_min_grade: minima, promotion_max_lost_areas: maxAreas, updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }).eq('id', 1)
   if (error) return { exito: false, error: error.message }
 
@@ -498,11 +491,7 @@ export async function guardarConfiguracion(datos: { colegio: Colegio, tipos: Tip
   }
 
   for (const curso of datos.cursos) {
-    const grado = t(curso.officialGrade, 40)
-    if (grado && !GRADOS_OFICIALES.includes(grado)) return { exito: false, error: `El grado de «${curso.name}» no es válido.` }
     const { error: e } = await admin.from('grades').update({
-      official_grade: grado || null, official_level: t(curso.officialLevel, 60) || (grado ? nivelDeGrado(grado) : null),
-      next_grade_id: curso.isFinal ? null : curso.nextGradeId, is_final_grade: !!curso.isFinal,
       tuition_fee: valorPesos(curso.tuitionFee), monthly_fee: valorPesos(curso.monthlyFee),
     }).eq('id', curso.id)
     if (e) return { exito: false, error: e.message }

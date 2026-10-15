@@ -64,6 +64,8 @@ export default function AdminSidebar() {
       setMenuAbierto("horario");
     } else if (pathname?.includes("/certificados")) {
       setMenuAbierto("certificados");
+    } else if (pathname?.includes("/fin-de-anio")) {
+      setMenuAbierto("fin-de-anio");
     }
   }, [pathname]);
 
@@ -554,22 +556,64 @@ export default function AdminSidebar() {
           </div>
 
           <div>
-            <Link
-              href="/plataformas/admin/fin-de-anio"
+            <button
+              onClick={() => toggleMenu("fin-de-anio")}
               style={{
                 ...btnStyle,
-                justifyContent: "flex-start",
-                gap: "10px",
-                backgroundColor: pathname?.includes("/fin-de-anio")
-                  ? "rgba(56, 189, 248, 0.1)"
-                  : "transparent",
-                color: pathname?.includes("/fin-de-anio")
-                  ? "#38bdf8"
-                  : "#f8fafc",
+                backgroundColor:
+                  menuAbierto === "fin-de-anio"
+                    ? "rgba(255,255,255,0.05)"
+                    : "transparent",
               }}
             >
-              <FaFlagCheckered /> Fin de Año
-            </Link>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <FaFlagCheckered
+                  color={menuAbierto === "fin-de-anio" ? "#38bdf8" : "white"}
+                />{" "}
+                Fin de Año
+              </div>
+              {menuAbierto === "fin-de-anio" ? (
+                <FaChevronUp size={12} color="#94a3b8" />
+              ) : (
+                <FaChevronDown size={12} color="#94a3b8" />
+              )}
+            </button>
+
+            <div
+              style={{
+                display: menuAbierto === "fin-de-anio" ? "flex" : "none",
+                flexDirection: "column",
+                gap: "5px",
+                marginTop: "5px",
+              }}
+            >
+              <Link
+                href="/plataformas/admin/fin-de-anio"
+                style={{
+                  ...linkStyle,
+                  color:
+                    pathname === "/plataformas/admin/fin-de-anio"
+                      ? "#38bdf8"
+                      : "#cbd5e1",
+                }}
+              >
+                <FaClipboardCheck /> Revisión
+              </Link>
+              <Link
+                href="/plataformas/admin/fin-de-anio/configuracion"
+                style={{
+                  ...linkStyle,
+                  color:
+                    pathname === "/plataformas/admin/fin-de-anio/configuracion"
+                      ? "#38bdf8"
+                      : "#cbd5e1",
+                }}
+              >
+                <FaCog /> Configuración
+              </Link>
+            </div>
           </div>
 
           <div>
