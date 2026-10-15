@@ -6,7 +6,7 @@ import { FaFlagCheckered, FaSpinner, FaUndo } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
-import type { ResultadoAnio } from 'app/utils/certificados/comun'
+import { type ResultadoAnio, RESULTADO_HABILITACION } from 'app/utils/certificados/comun'
 import { obtenerFinDeAnio, cerrarAnio, deshacerCierre, type DatosFinDeAnio, type Decision } from './actions'
 
 type Estado = { result: ResultadoAnio | null, nextGradeId: number | null }
@@ -18,6 +18,7 @@ export default function FinDeAnioPage() {
   const [error, setError] = useState<string | null>(null)
   const [decisiones, setDecisiones] = useState<Record<string, Estado>>({})
   const [cursoId, setCursoId] = useState<number | null>(null)
+  const [verRetiros, setVerRetiros] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [confirmacion, setConfirmacion] = useState('')
   const [ocupado, setOcupado] = useState(false)
@@ -42,6 +43,8 @@ export default function FinDeAnioPage() {
   const pendientes = contar(null)
   const sinDestino = todos.filter(e => decisiones[e.id]?.result === 'promoted' && !decisiones[e.id]?.nextGradeId).length
   const incompletos = todos.filter(e => e.incompletas > 0).length
+  const enHabilitacion = todos.filter(e => e.perdidas.length > 0).length
+  const sinResultado = todos.reduce((n, e) => n + e.perdidas.filter(m => !m.result).length, 0)
 
   if (error) return <main className={styles.mainContent}><div className={h.errorBox}>{error}</div></main>
   if (!datos) return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={50} color="#3b82f6" /></div>
@@ -114,11 +117,32 @@ export default function FinDeAnioPage() {
             <div key={r} className={c.tile}><b style={{ color: COLOR[r] }}>{contar(r)}</b><span>{l}</span></div>
           ))}
           <div className={c.tile}><b style={{ color: COLOR.pend }}>{pendientes}</b><span>Por revisar</span></div>
+          <button type="button" className={c.tile} style={{ cursor: 'pointer', textAlign: 'left', font: 'inherit' }} onClick={() => setVerRetiros(!verRetiros)} aria-expanded={verRetiros}>
+            <b style={{ color: COLOR.left }}>{datos.retiros.length}</b><span>Retiros en el año {verRetiros ? '▲' : '▼'}</span>
+          </button>
+          <Link href="/plataformas/admin/fin-de-anio/habilitaciones" className={c.tile} style={{ textDecoration: 'none' }}>
+            <b style={{ color: COLOR.repeat }}>{enHabilitacion}</b><span>En habilitación →</span>
+          </Link>
         </div>
+
+        {verRetiros && (
+          datos.retiros.length === 0 ? <div className={h.empty}>No hay retiros este año.</div> : (
+            <section className={c.tblWrap}>
+              <table className={c.tbl}>
+                <thead><tr><th>Estudiante</th><th>Curso</th><th>Fecha</th><th>Motivo</th></tr></thead>
+                <tbody>
+                  {datos.retiros.map((r, i) => (
+                    <tr key={i}><td><b>{r.name}</b></td><td>{r.course ?? '—'}</td><td>{r.date ?? '—'}</td><td>{r.reason ?? '—'}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
+        )}
 
         <div className={c.noteBox} style={{ background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155' }}>
           <strong style={{ color: '#64748b' }}>Cómo se sugiere</strong>
-          El sistema propone «pasa de curso» a todos, salvo a quien tenga {datos.reglas.areasParaRepetir} o más áreas con definitiva menor a {datos.reglas.notaMinima.toFixed(1)}; esos quedan «por revisar». En preescolar nunca se sugiere repetir. La regla se cambia en Fin de año → Configuración.
+          Las materias se aprueban con {datos.reglas.notaMinima.toFixed(1)}. El sistema propone «pasa de curso» a quien no perdió ninguna materia o habilitó todas las que perdió. Quien tenga alguna materia sin habilitar o no habilitada queda «por revisar» (en principio repite). En preescolar no hay habilitaciones y nunca se sugiere repetir. La nota mínima se cambia en Fin de año → Configuración.
         </div>
 
         {datos.cursos.length === 0 ? <div className={h.empty}>No hay estudiantes con curso asignado.</div> : (
@@ -143,19 +167,31 @@ export default function FinDeAnioPage() {
               </h3>
               <div className={c.tblWrap}>
                 <table className={c.tbl}>
-                  <thead><tr><th>Estudiante</th><th>Promedio</th><th>Áreas perdidas</th><th>Decisión</th></tr></thead>
+                  <thead><tr><th>Estudiante</th><th>Promedio</th><th>Materias perdidas</th><th>Decisión</th></tr></thead>
                   <tbody>
                     {curso.estudiantes.map(e => {
                       const d = decisiones[e.id]
+                      const noHabilito = e.perdidas.filter(m => m.result === 'failed').length
+                      const sinHabilitar = e.perdidas.filter(m => !m.result).length
                       return (
                         <tr key={e.id} className={d?.result ? '' : c.rowReview}>
                           <td>
                             <b>{e.name}</b>
-                            {!d?.result && <><br /><small style={{ color: '#b45309', fontWeight: 600 }}>Sugerido: repite ({e.lostAreas} áreas perdidas)</small></>}
+                            {!d?.result && e.perdidas.length > 0 && (
+                              <><br /><small style={{ color: '#b45309', fontWeight: 600 }}>
+                                {noHabilito ? `Sugerido: repite (no habilitó ${noHabilito} materia(s))` : `Habilitación pendiente en ${sinHabilitar} materia(s)`}
+                              </small></>
+                            )}
                             {e.incompletas > 0 && <><br /><small className={c.hint}>{e.incompletas} materia(s) sin nota en algún periodo</small></>}
                           </td>
                           <td style={{ fontVariantNumeric: 'tabular-nums' }}>{e.average?.toFixed(1) ?? '—'}</td>
-                          <td style={{ color: e.lostAreas >= datos.reglas.areasParaRepetir ? '#dc2626' : undefined, fontWeight: e.lostAreas >= datos.reglas.areasParaRepetir ? 700 : 400 }}>{curso.preescolar ? '—' : e.lostAreas}</td>
+                          <td>
+                            {curso.preescolar ? '—' : e.perdidas.length === 0 ? <span className={c.hint}>Ninguna</span> : e.perdidas.map(m => (
+                              <div key={m.subject} style={{ fontSize: '0.82rem', color: m.result === 'passed' ? '#15803d' : '#dc2626' }}>
+                                {m.subject} ({m.nota.toFixed(1)}) · <b>{m.result ? RESULTADO_HABILITACION[m.result] : 'Sin habilitar'}</b>
+                              </div>
+                            ))}
+                          </td>
                           <td>
                             <div className={c.decision}>
                               {opciones.map(([r, l]) => (
@@ -185,6 +221,7 @@ export default function FinDeAnioPage() {
           <h3>Pasar al año {datos.anio + 1}</h3>
           <div className={c.checks}>
             <span className={incompletos ? c.checkNo : c.checkOk}>{incompletos ? `✕ ${incompletos} estudiante(s) con notas incompletas (revisa que el 3.er periodo esté cerrado)` : '✓ Notas completas en todos los cursos'}</span>
+            <span className={sinResultado ? c.checkNo : c.checkOk}>{sinResultado ? `✕ ${sinResultado} habilitación(es) sin resultado (ver Habilitaciones)` : '✓ Todas las habilitaciones tienen resultado'}</span>
             <span className={pendientes ? c.checkNo : c.checkOk}>{pendientes ? `✕ Faltan ${pendientes} estudiante(s) por revisar` : '✓ Todas las decisiones revisadas'}</span>
             <span className={sinDestino ? c.checkNo : c.checkOk}>{sinDestino ? `✕ ${sinDestino} estudiante(s) pasan de curso sin curso de destino` : '✓ Todos los que pasan tienen curso de destino'}</span>
             {datos.sinCurso > 0 && <span className={c.checkNo}>✕ {datos.sinCurso} estudiante(s) sin curso asignado: no se tendrán en cuenta</span>}

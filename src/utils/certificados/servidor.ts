@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdmin, obtenerSesion } from 'app/utils/horario/servidor'
 import { hoyISO } from 'app/utils/horario/comun'
+import { aplicarHabilitaciones, cargarHabilitaciones } from 'app/utils/habilitaciones/servidor'
 import {
   type CamposCertificado, type Colegio, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
   MAX_COMPROBANTE_MB, TIPOS_COMPROBANTE, areaCertificado, formatoDeCurso, nivelDeGrado, ordenarNotas, plantillaNotas, promedio,
@@ -26,7 +27,7 @@ export async function cargarColegio(admin: SupabaseClient): Promise<Colegio> {
     institutionName: s?.institution_name ?? 'Ludo Club Aventuras Creativas',
     city: s?.city ?? 'Zipaquirá',
     scheduleText: s?.schedule_text ?? 'lunes a viernes de 7:00 a.m. a 2:00 p.m.',
-    scheduleTextPreschool: s?.schedule_text_preschool ?? 'lunes a viernes de 7:00 a.m. a 1:00 p.m.',
+    scheduleTextPreschool: s?.schedule_text_preschool ?? 'lunes a viernes de 8:00 a.m. a 1:00 p.m.',
     calendar: s?.calendar ?? 'A',
     resolutionText: s?.resolution_text ?? '',
     daneText: s?.dane_text ?? '',
@@ -39,8 +40,7 @@ export async function cargarColegio(admin: SupabaseClient): Promise<Colegio> {
     bankInfo: s?.bank_info ?? null,
     cashInfo: s?.cash_info ?? null,
     signaturePath: s?.signature_path ?? null,
-    promotionMinGrade: Number(s?.promotion_min_grade ?? 3),
-    promotionMaxLostAreas: Number(s?.promotion_max_lost_areas ?? 3),
+    promotionMinGrade: Number(s?.promotion_min_grade ?? 3.5),
   }
 }
 
@@ -204,7 +204,8 @@ export async function notasActuales(admin: SupabaseClient, studentIds: string[])
 export async function notasParaCertificado(admin: SupabaseClient, est: Estudiante, anio: number, formato: FormatoNotas) {
   const activo = await anioActivo(admin)
   if (anio === activo) {
-    const filas = (await notasActuales(admin, [est.id])).get(est.id) ?? []
+    const [notas, registros, colegio] = await Promise.all([notasActuales(admin, [est.id]), cargarHabilitaciones(admin, anio, [est.id]), cargarColegio(admin)])
+    const filas = aplicarHabilitaciones(notas.get(est.id) ?? [], registros, est.id, colegio.promotionMinGrade)
     if (filas.length) return { filas, origen: 'plataforma' as const }
   } else {
     const { data: h } = await admin.from('student_year_history').select('final_grades').eq('student_id', est.id).eq('school_year', anio).maybeSingle()

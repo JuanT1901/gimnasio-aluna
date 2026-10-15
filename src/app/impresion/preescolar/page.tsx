@@ -343,7 +343,7 @@ function ContenidoBoletinPreescolarPDF() {
                       <td colSpan={4} className="td-bordeado" style={{ padding: '10px', backgroundColor: '#f8fafc' }}>
                         <div style={{ fontSize: '0.8rem' }}>
                           <strong>SUGERENCIAS - {baseName}:</strong>
-                          <p style={{ margin: '5px 0 0 0', fontStyle: 'italic', lineHeight: '1.4' }}>
+                          <p style={{ margin: '5px 0 0 0', fontStyle: 'italic', lineHeight: '1.4', textAlign: 'justify' }}>
                             {sugerencia}
                           </p>
                         </div>

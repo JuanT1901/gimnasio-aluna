@@ -29,6 +29,7 @@ import {
   FaFileAlt,
   FaCog,
   FaFlagCheckered,
+  FaRedoAlt,
 } from "react-icons/fa";
 import sidebarStyles from "app/styles/components/PlatformSidebar.module.scss";
 import horarioStyles from "app/styles/pages/Horario.module.scss";
@@ -600,6 +601,18 @@ export default function AdminSidebar() {
                 }}
               >
                 <FaClipboardCheck /> Revisión
+              </Link>
+              <Link
+                href="/plataformas/admin/fin-de-anio/habilitaciones"
+                style={{
+                  ...linkStyle,
+                  color:
+                    pathname === "/plataformas/admin/fin-de-anio/habilitaciones"
+                      ? "#38bdf8"
+                      : "#cbd5e1",
+                }}
+              >
+                <FaRedoAlt /> Habilitaciones
               </Link>
               <Link
                 href="/plataformas/admin/fin-de-anio/configuracion"

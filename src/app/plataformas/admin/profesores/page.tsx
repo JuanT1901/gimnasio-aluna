@@ -283,66 +283,7 @@ export default function AdminProfesoresPage() {
               </div>
             ) : (
               <>
-                <div className={`${styles.card} ${styles.desktopOnly}`} style={{ overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
-                        <th style={{ padding: '15px 20px' }}>Nombre del Profesor</th>
-                        <th style={{ padding: '15px 20px' }}>Documento</th>
-                        <th style={{ padding: '15px 20px', textAlign: 'center' }}>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profesores.map((profe, index) => {
-                        const estaActivo = profe.is_active !== false;
-
-                        return (
-                          <tr key={profe.id} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fafc', opacity: estaActivo ? 1 : 0.6 }}>
-                            <td style={{ padding: '15px 20px', fontWeight: 'bold', color: '#334155', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <FaChalkboardTeacher color={estaActivo ? "#3b82f6" : "#94a3b8"} />
-                              <span style={{ textDecoration: estaActivo ? 'none' : 'line-through' }}>{profe.full_name}</span>
-                              <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: '12px', backgroundColor: estaActivo ? '#dcfce7' : '#fee2e2', color: estaActivo ? '#166534' : '#991b1b', marginLeft: '10px' }}>
-                                {estaActivo ? 'Activo' : 'Inactivo'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '15px 20px', color: '#64748b' }}>
-                              {profe.doc_number || 'N/A'}
-                            </td>
-                            <td style={{ padding: '15px 20px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                                <button
-                                  onClick={() => cambiarEstado(profe)}
-                                  style={{ backgroundColor: estaActivo ? '#ef4444' : '#10b981', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
-                                  title={estaActivo ? "Deshabilitar acceso" : "Restaurar acceso"}
-                                >
-                                  {estaActivo ? <FaUserSlash /> : <FaUserCheck />}
-                                </button>
-                                {estaActivo && (
-                                  <>
-                                    <button
-                                      onClick={() => { setProfeActivo(profe); setVista('clases'); }}
-                                      style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
-                                    >
-                                      <FaList /> Clases
-                                    </button>
-                                    <button
-                                      onClick={() => abrirEdicion(profe)}
-                                      style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
-                                    >
-                                      <FaEdit /> Editar
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className={`${styles.mobileOnly} ${styles.accordionList}`}>
+                <div className={styles.accordionList}>
                   {profesores.map((profe) => {
                     const estaActivo = profe.is_active !== false;
                     return (

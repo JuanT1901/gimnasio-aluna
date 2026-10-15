@@ -47,7 +47,7 @@ export default function ConfiguracionFinDeAnioPage() {
       <header className={styles.header} style={{ marginBottom: '24px' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><FaCog color="#3b82f6" /> Configuración de fin de año</h1>
-          <p>La regla para sugerir quién repite y el grado oficial y curso siguiente de cada curso.</p>
+          <p>La nota mínima para aprobar una materia y el grado oficial y curso siguiente de cada curso.</p>
         </div>
         <button type="button" className={`${h.btn} ${h.btnGreen}`} disabled={guardando} onClick={guardar}>
           {guardando ? <FaSpinner className="fa-spin" /> : <FaSave />} Guardar cambios
@@ -58,14 +58,12 @@ export default function ConfiguracionFinDeAnioPage() {
       <div className={c.stack}>
         <section className={c.panel}>
           <h3>Regla de promoción</h3>
-          <p>Se usa para sugerir quién repite. La decisión final siempre es de la rectora.</p>
+          <p>Se usa para saber quién va a habilitación y para sugerir quién repite. La decisión final siempre es de la rectora.</p>
           <div className={c.formGrid}>
-            <label className={h.field}>Nota mínima para aprobar un área
+            <label className={h.field}>Nota mínima para aprobar una materia
               <input className={h.input} type="number" step={0.1} min={1} max={5} value={regla.notaMinima} onChange={e => setRegla({ ...regla, notaMinima: Number(e.target.value) })} /></label>
-            <label className={h.field}>Áreas perdidas para repetir
-              <input className={h.input} type="number" min={1} max={20} value={regla.areasParaRepetir} onChange={e => setRegla({ ...regla, areasParaRepetir: Number(e.target.value) })} /></label>
           </div>
-          <span className={c.hint}>Con esta cantidad o más de áreas perdidas se sugiere que el estudiante repita. En preescolar nunca se sugiere repetir.</span>
+          <span className={c.hint}>Con una sola materia por debajo de esta nota, el estudiante va a habilitación. Si no la habilita, se sugiere que repita. Preescolar no tiene habilitaciones y nunca se sugiere que repita.</span>
         </section>
 
         <section className={c.panel}>

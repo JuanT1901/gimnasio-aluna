@@ -1,15 +1,21 @@
 'use server'
 
 import { verificarRol } from 'app/utils/supabase/auth-check'
-import { type ResultadoAnio, GRADOS_OFICIALES, areasPerdidas, formatoDeCurso, nivelDeGrado, promedio, siguienteGrado } from 'app/utils/certificados/comun'
+import {
+  type FilaNotas, type ResultadoAnio, type ResultadoHabilitacion, GRADOS_OFICIALES, formatoDeCurso, materiasPerdidas, nivelDeGrado,
+  notaMateria, promedio, siguienteGrado,
+} from 'app/utils/certificados/comun'
 import { getAdmin, cargarColegio, anioActivo, notasActuales } from 'app/utils/certificados/servidor'
+import { type RegistroHabilitacion, aplicarHabilitaciones, cargarHabilitaciones, claveHabilitacion } from 'app/utils/habilitaciones/servidor'
+
+export type MateriaPerdida = { subject: string, nota: number, result: ResultadoHabilitacion | null }
 
 export type EstudianteFin = {
   id: string
   name: string
   officialGrade: string
   average: number | null
-  lostAreas: number
+  perdidas: MateriaPerdida[] // materias por debajo de la nota mínima y cómo le fue en la habilitación
   incompletas: number // materias a las que les falta la nota de algún periodo
   sugerido: ResultadoAnio | null // null = por revisar
 }
@@ -28,9 +34,10 @@ export type CursoFin = {
 export type DatosFinDeAnio = {
   anio: number
   ultimoCerrado: number | null
-  reglas: { notaMinima: number, areasParaRepetir: number }
+  reglas: { notaMinima: number }
   cursos: CursoFin[]
   sinCurso: number
+  retiros: { name: string, course: string | null, reason: string | null, date: string | null }[]
 }
 
 export async function obtenerFinDeAnio(): Promise<{ exito: boolean, error?: string, datos?: DatosFinDeAnio }> {
@@ -45,9 +52,12 @@ export async function obtenerFinDeAnio(): Promise<{ exito: boolean, error?: stri
     admin.from('profiles').select('id, full_name, grade_id, official_grade, student_status').eq('role', 'student').order('full_name'),
     admin.from('school_years').select('year').eq('status', 'closed').order('year', { ascending: false }).limit(1),
   ])
+  const { data: retirados } = await admin.from('alumni').select('full_name, last_course, reason, exit_date')
+    .eq('exit_kind', 'withdrawn').eq('exit_year', anio).order('exit_date', { ascending: false })
 
   const activos = (estudiantes || []).filter(e => e.student_status !== 'alumni')
-  const notas = await notasActuales(admin, activos.map(e => e.id))
+  const ids = activos.map(e => e.id)
+  const [notas, registros] = await Promise.all([notasActuales(admin, ids), cargarHabilitaciones(admin, anio, ids)])
   const nombreCurso = new Map((cursos || []).map(c => [c.id, c.name]))
 
   const resultado: CursoFin[] = (cursos || []).map(c => {
@@ -57,12 +67,12 @@ export async function obtenerFinDeAnio(): Promise<{ exito: boolean, error?: stri
       nextName: c.next_grade_id ? nombreCurso.get(c.next_grade_id) ?? null : null, isFinal: !!c.is_final_grade, preescolar,
       estudiantes: activos.filter(e => e.grade_id === c.id).map(e => {
         const filas = notas.get(e.id) ?? []
-        const perdidas = preescolar ? 0 : areasPerdidas(filas, colegio.promotionMinGrade)
-        // En preescolar no se reprueba; en los demás, con muchas áreas perdidas queda por revisar
-        const sugerido: ResultadoAnio | null = perdidas >= colegio.promotionMaxLostAreas ? null : c.is_final_grade ? 'graduated' : 'promoted'
+        const perdidas = preescolar ? [] : perdidasConResultado(filas, registros, e.id, colegio.promotionMinGrade)
+        // En preescolar no se reprueba; en los demás, si queda alguna materia sin habilitar queda por revisar
+        const sugerido: ResultadoAnio | null = perdidas.some(m => m.result !== 'passed') ? null : c.is_final_grade ? 'graduated' : 'promoted'
         return {
           id: e.id, name: e.full_name ?? '', officialGrade: e.official_grade || c.official_grade || '',
-          average: promedio(filas.map(f => f.def ?? promedio(f.p))), lostAreas: perdidas,
+          average: promedio(aplicarHabilitaciones(filas, registros, e.id, colegio.promotionMinGrade).map(notaMateria)), perdidas,
           incompletas: filas.filter(f => f.p.slice(0, 3).some(n => n === null)).length, sugerido,
         }
       }),
@@ -73,11 +83,18 @@ export async function obtenerFinDeAnio(): Promise<{ exito: boolean, error?: stri
     exito: true,
     datos: {
       anio, ultimoCerrado: cerrados?.[0]?.year ?? null,
-      reglas: { notaMinima: colegio.promotionMinGrade, areasParaRepetir: colegio.promotionMaxLostAreas },
+      reglas: { notaMinima: colegio.promotionMinGrade },
       cursos: resultado,
       sinCurso: activos.filter(e => !e.grade_id).length,
+      retiros: (retirados || []).map(r => ({ name: r.full_name, course: r.last_course, reason: r.reason, date: r.exit_date })),
     },
   }
+}
+
+function perdidasConResultado(filas: FilaNotas[], registros: Map<string, RegistroHabilitacion>, studentId: string, notaMinima: number): MateriaPerdida[] {
+  return materiasPerdidas(filas, notaMinima).map(f => ({
+    subject: f.subject, nota: notaMateria(f)!, result: registros.get(claveHabilitacion(studentId, f.subject))?.result ?? null,
+  }))
 }
 
 export type Decision = { studentId: string, result: ResultadoAnio, nextGradeId: number | null }
@@ -101,7 +118,8 @@ export async function cerrarAnio(decisiones: Decision[], confirmacion: string) {
   if (faltan) return { exito: false, error: `Faltan ${faltan} estudiante(s) por decidir.` }
 
   const cursoPorId = new Map((cursos || []).map(c => [c.id, c]))
-  const notas = await notasActuales(admin, activos.map(e => e.id))
+  const ids = activos.map(e => e.id)
+  const [notas, registros] = await Promise.all([notasActuales(admin, ids), cargarHabilitaciones(admin, anio, ids)])
 
   const payload = []
   for (const e of activos) {
@@ -112,7 +130,8 @@ export async function cerrarAnio(decisiones: Decision[], confirmacion: string) {
     }
     const curso = cursoPorId.get(e.grade_id)
     const preescolar = formatoDeCurso(null, curso?.official_level) === 'preescolar'
-    const filas = notas.get(e.id) ?? []
+    // Las materias habilitadas quedan en el historial con la nota mínima como definitiva
+    const filas = aplicarHabilitaciones(notas.get(e.id) ?? [], registros, e.id, colegio.promotionMinGrade)
     const gradoActual = e.official_grade || curso?.official_grade || ''
     const destino = d.nextGradeId ? cursoPorId.get(d.nextGradeId) : null
     payload.push({
@@ -120,8 +139,9 @@ export async function cerrarAnio(decisiones: Decision[], confirmacion: string) {
       result: d.result,
       next_grade_id: d.result === 'promoted' ? d.nextGradeId : null,
       next_official_grade: d.result === 'promoted' ? siguienteGrado(gradoActual) ?? destino?.official_grade ?? null : null,
-      average: promedio(filas.map(f => f.def ?? promedio(f.p))),
-      lost_areas: preescolar ? 0 : areasPerdidas(filas, colegio.promotionMinGrade),
+      average: promedio(filas.map(notaMateria)),
+      // Materias que quedaron perdidas después de las habilitaciones
+      lost_areas: preescolar ? 0 : materiasPerdidas(filas, colegio.promotionMinGrade).length,
       final_grades: filas,
     })
   }
@@ -144,7 +164,7 @@ export async function deshacerCierre(anio: number) {
 
 // Grado oficial y curso siguiente: los usan el paso de año y los certificados
 export type CursoGrado = { id: number, name: string, officialGrade: string, officialLevel: string, nextGradeId: number | null, isFinal: boolean }
-export type ReglaPromocion = { notaMinima: number, areasParaRepetir: number }
+export type ReglaPromocion = { notaMinima: number }
 
 export async function obtenerConfiguracionFin(): Promise<{ exito: boolean, error?: string, regla?: ReglaPromocion, cursos?: CursoGrado[] }> {
   const { autorizado, error: authError } = await verificarRol('admin')
@@ -158,7 +178,7 @@ export async function obtenerConfiguracionFin(): Promise<{ exito: boolean, error
   if (error) return { exito: false, error: error.message }
   return {
     exito: true,
-    regla: { notaMinima: colegio.promotionMinGrade, areasParaRepetir: colegio.promotionMaxLostAreas },
+    regla: { notaMinima: colegio.promotionMinGrade },
     cursos: (cursos || []).map(c => ({
       id: c.id, name: c.name, officialGrade: c.official_grade ?? '', officialLevel: c.official_level ?? '',
       nextGradeId: c.next_grade_id ?? null, isFinal: !!c.is_final_grade,
@@ -171,13 +191,11 @@ export async function guardarConfiguracionFin(datos: { regla: ReglaPromocion, cu
   if (!autorizado) return { exito: false, error: authError }
 
   const minima = Number(datos.regla.notaMinima)
-  const maxAreas = Number(datos.regla.areasParaRepetir)
   if (isNaN(minima) || minima < 1 || minima > 5) return { exito: false, error: 'La nota mínima debe estar entre 1.0 y 5.0.' }
-  if (!Number.isInteger(maxAreas) || maxAreas < 1 || maxAreas > 20) return { exito: false, error: 'La cantidad de áreas perdidas debe ser un número entre 1 y 20.' }
 
   const admin = getAdmin()
   const { error } = await admin.from('school_settings')
-    .update({ promotion_min_grade: minima, promotion_max_lost_areas: maxAreas, updated_at: new Date().toISOString() }).eq('id', 1)
+    .update({ promotion_min_grade: minima, updated_at: new Date().toISOString() }).eq('id', 1)
   if (error) return { exito: false, error: error.message }
 
   const t = (v: string | null | undefined, max: number) => (v ?? '').trim().slice(0, max)

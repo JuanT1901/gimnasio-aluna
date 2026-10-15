@@ -187,16 +187,19 @@ export async function notificarDocente(admin: SupabaseClient, datos: {
 
 // ---------- Turno de puerta (preescolar) ----------
 
-export type TurnoPuerta = { dayOfWeek: number, teacherId: string | null, teacherName: string | null, start: string, end: string }
+// Dos turnos por día: la entrada (7 a 8, antes de clase) y la salida (1 a 2, después de clase)
+export type TurnoPuertaTipo = 'morning' | 'afternoon'
+export type TurnoPuerta = { dayOfWeek: number, shift: TurnoPuertaTipo, teacherId: string | null, teacherName: string | null, start: string, end: string }
 export const NOMBRE_PUERTA = 'Puerta'
 
 export async function cargarTurnosPuerta(admin: SupabaseClient): Promise<TurnoPuerta[]> {
-  const { data } = await admin.from('door_duties').select('day_of_week, teacher_id, start_time, end_time').order('day_of_week', { ascending: true })
+  const { data } = await admin.from('door_duties').select('day_of_week, shift, teacher_id, start_time, end_time')
+    .order('day_of_week', { ascending: true }).order('start_time', { ascending: true })
   const ids = [...new Set((data || []).map(t => t.teacher_id).filter(Boolean))] as string[]
   const { data: docentes } = ids.length ? await admin.from('profiles').select('id, full_name').in('id', ids) : { data: [] as { id: string, full_name: string }[] }
   const nombre = new Map((docentes || []).map(d => [d.id, d.full_name]))
   return (data || []).map(t => ({
-    dayOfWeek: t.day_of_week, teacherId: t.teacher_id, teacherName: t.teacher_id ? nombre.get(t.teacher_id) ?? null : null,
+    dayOfWeek: t.day_of_week, shift: t.shift, teacherId: t.teacher_id, teacherName: t.teacher_id ? nombre.get(t.teacher_id) ?? null : null,
     start: horaCorta(t.start_time), end: horaCorta(t.end_time),
   }))
 }
@@ -204,7 +207,7 @@ export async function cargarTurnosPuerta(admin: SupabaseClient): Promise<TurnoPu
 // El turno se muestra como una actividad fija en el horario del profesor (no lleva planeación)
 export function clasesDePuerta(turnos: TurnoPuerta[], teacherId: string): ClaseHorario[] {
   return turnos.filter(t => t.teacherId === teacherId).map(t => ({
-    id: -t.dayOfWeek, gradeId: 0, gradeName: 'Preescolar', section: 'preescolar' as const, dayOfWeek: t.dayOfWeek, slotId: 0,
+    id: -(t.dayOfWeek * 10 + (t.shift === 'morning' ? 1 : 2)), gradeId: 0, gradeName: 'Preescolar', section: 'preescolar' as const, dayOfWeek: t.dayOfWeek, slotId: 0,
     start: t.start, end: t.end, subjectId: null, subjectName: null, label: NOMBRE_PUERTA, teacherId: t.teacherId, teacherName: t.teacherName,
   }))
 }

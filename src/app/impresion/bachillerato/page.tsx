@@ -350,7 +350,7 @@ function ContenidoBoletinBachilleratoPDF() {
                               <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
                                 {(c.competencia || c.Competencia || "-").toUpperCase()}
                               </td>
-                              <td colSpan={3}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
+                              <td colSpan={3} style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
                             </>
                           )}
                         </tr>

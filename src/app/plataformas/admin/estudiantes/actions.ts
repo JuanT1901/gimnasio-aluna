@@ -2,6 +2,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { verificarRol } from 'app/utils/supabase/auth-check'
+import { hoyISO } from 'app/utils/horario/comun'
+import { anioActivo } from 'app/utils/certificados/servidor'
 
 export async function obtenerEmailAuth(userId: string) {
   const { autorizado, error: authError } = await verificarRol('admin')
@@ -94,4 +96,45 @@ export async function actualizarEstudiante(id: string, datos: any) {
   } catch (error: any) {
     return { exito: false, error: error.message }
   }
+}
+
+// Retiro durante el año: el estudiante deja de estar activo y queda en Exalumnos con el motivo
+export async function retirarEstudiante(id: string, motivo: string) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const razon = motivo.trim().slice(0, 500)
+  if (!razon) return { exito: false, error: 'Escribe el motivo del retiro.' }
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  const { data: p } = await supabaseAdmin
+    .from('profiles')
+    .select('id, role, full_name, doc_type, doc_number, birth_date, grade_id, course_name, official_grade, student_status, mother_email, father_email')
+    .eq('id', id)
+    .maybeSingle()
+  if (!p || p.role !== 'student') return { exito: false, error: 'Estudiante no encontrado.' }
+  if (p.student_status === 'alumni') return { exito: false, error: 'Este estudiante ya está en Exalumnos.' }
+
+  const { data: curso } = p.grade_id
+    ? await supabaseAdmin.from('grades').select('official_grade').eq('id', p.grade_id).maybeSingle()
+    : { data: null }
+  const anio = await anioActivo(supabaseAdmin)
+
+  const { error } = await supabaseAdmin.from('alumni').insert({
+    profile_id: p.id, full_name: p.full_name, doc_type: p.doc_type, doc_number: p.doc_number, birth_date: p.birth_date,
+    last_grade: p.official_grade || curso?.official_grade || null, last_course: p.course_name, exit_year: anio,
+    reason: razon, email: p.mother_email || p.father_email || null, exit_kind: 'withdrawn', exit_date: hoyISO(),
+  })
+  if (error) return { exito: false, error: error.message }
+
+  const { error: e } = await supabaseAdmin.from('profiles')
+    .update({ student_status: 'alumni', alumni_since: anio, grade_id: null, course_name: null })
+    .eq('id', p.id)
+  if (e) return { exito: false, error: `Quedó en Exalumnos, pero no se pudo quitar de los activos: ${e.message}` }
+  return { exito: true }
 }

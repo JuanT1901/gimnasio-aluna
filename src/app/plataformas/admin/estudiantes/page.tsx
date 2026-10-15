@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 import styles from 'app/styles/pages/Dashboard.module.scss'
-import { FaUserPlus, FaUserGraduate, FaSpinner, FaSearch, FaEdit, FaTimes, FaSave, FaFilter, FaCheckCircle, FaAddressCard, FaFemale, FaMale, FaBus, FaChevronDown, FaChevronUp, FaKey, FaIdCard, FaSchool } from 'react-icons/fa'
-import { actualizarEstudiante, obtenerEmailAuth, actualizarCredencialesEstudiante } from './actions'
+import { FaUserPlus, FaUserGraduate, FaSpinner, FaSearch, FaEdit, FaTimes, FaSave, FaFilter, FaCheckCircle, FaAddressCard, FaFemale, FaMale, FaBus, FaChevronDown, FaChevronUp, FaKey, FaIdCard, FaSchool, FaUserMinus } from 'react-icons/fa'
+import { actualizarEstudiante, obtenerEmailAuth, actualizarCredencialesEstudiante, retirarEstudiante } from './actions'
 
 export default function EstudiantesPage() {
   const [supabase] = useState(() => createBrowserClient(
@@ -25,6 +25,10 @@ export default function EstudiantesPage() {
   const [guardandoCambios, setGuardandoCambios] = useState(false)
   const [errorEdicion, setErrorEdicion] = useState<string | null>(null)
   const [mensajeExito, setMensajeExito] = useState(false)
+  const [retirando, setRetirando] = useState<any>(null)
+  const [motivoRetiro, setMotivoRetiro] = useState('')
+  const [guardandoRetiro, setGuardandoRetiro] = useState(false)
+  const [avisoRetiro, setAvisoRetiro] = useState<string | null>(null)
   
   const [seccionAbierta, setSeccionAbierta] = useState<string>('academicos')
 
@@ -42,7 +46,7 @@ export default function EstudiantesPage() {
 
   const cargarDatos = async () => {
     try {
-      const { data: estData } = await supabase.from('profiles').select('id, full_name, doc_type, doc_number, course_name, grade_id, birth_date, city, neighborhood, address, doc_expedition_city, eps, blood_type, siblings_count, mother_name, mother_doc, mother_profession, mother_cellphone, mother_phone, mother_email, mother_lives_with_student, father_name, father_doc, father_profession, father_cellphone, father_phone, father_email, father_lives_with_student, guardian_name, guardian_cellphone, reference_name, reference_cellphone, extra_shift, school_bus, bus_address, needs_sweatshirt, sweatshirt_size, needs_tshirt, tshirt_size').eq('role', 'student').order('full_name', { ascending: true })
+      const { data: estData } = await supabase.from('profiles').select('id, full_name, doc_type, doc_number, course_name, grade_id, birth_date, city, neighborhood, address, doc_expedition_city, eps, blood_type, siblings_count, mother_name, mother_doc, mother_profession, mother_cellphone, mother_phone, mother_email, mother_lives_with_student, father_name, father_doc, father_profession, father_cellphone, father_phone, father_email, father_lives_with_student, guardian_name, guardian_cellphone, reference_name, reference_cellphone, extra_shift, school_bus, bus_address, needs_sweatshirt, sweatshirt_size, needs_tshirt, tshirt_size').eq('role', 'student').neq('student_status', 'alumni').order('full_name', { ascending: true })
       if (estData) setEstudiantes(estData)
 
       const { data: gradesData } = await supabase.from('grades').select('*').order('order_index', { ascending: true })
@@ -52,6 +56,18 @@ export default function EstudiantesPage() {
     } finally {
       setCargando(false)
     }
+  }
+
+  const confirmarRetiro = async () => {
+    if (!retirando) return
+    setGuardandoRetiro(true)
+    const r = await retirarEstudiante(retirando.id, motivoRetiro)
+    setGuardandoRetiro(false)
+    if (!r.exito) { alert(r.error); return }
+    setEstudiantes(estudiantes.filter(e => e.id !== retirando.id))
+    setAvisoRetiro(`${retirando.full_name} pasó a Exalumnos.`)
+    setTimeout(() => setAvisoRetiro(null), 4000)
+    setRetirando(null)
   }
 
   const abrirModalEdicion = async (estudiante: any) => {
@@ -243,12 +259,38 @@ export default function EstudiantesPage() {
                     <button onClick={() => abrirModalEdicion(est)} style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
                       <FaEdit /> Editar ficha
                     </button>
+                    <button onClick={() => { setRetirando(est); setMotivoRetiro('') }} style={{ backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca', padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', marginLeft: '8px' }}>
+                      <FaUserMinus /> Retiro
+                    </button>
                   </div>
                 </details>
               ))}
             </div>
         )}
       </div>
+
+      {avisoRetiro && (
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#1e293b', color: 'white', padding: '12px 18px', borderRadius: '8px', zIndex: 1100 }}>{avisoRetiro}</div>
+      )}
+
+      {retirando && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '12px', width: '95%', maxWidth: '480px' }}>
+            <h2 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}><FaUserMinus color="#b91c1c" /> Retiro de {retirando.full_name}</h2>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 14px' }}>
+              Sale de los estudiantes activos y de su curso, y pasa a Exalumnos. Sus notas y boletines no se borran, y podrá seguir pidiendo certificados.
+            </p>
+            <label style={labelStyle}>Motivo del retiro *</label>
+            <textarea value={motivoRetiro} onChange={e => setMotivoRetiro(e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Ej: Cambio de ciudad." />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+              <button onClick={() => setRetirando(null)} style={{ backgroundColor: '#f1f5f9', color: '#334155', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Cancelar</button>
+              <button onClick={confirmarRetiro} disabled={guardandoRetiro || !motivoRetiro.trim()} style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: guardandoRetiro || !motivoRetiro.trim() ? 'not-allowed' : 'pointer', opacity: guardandoRetiro || !motivoRetiro.trim() ? 0.6 : 1, fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                {guardandoRetiro ? <FaSpinner className="fa-spin" /> : <FaUserMinus />} Confirmar retiro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {estudianteEditando && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>

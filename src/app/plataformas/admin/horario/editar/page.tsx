@@ -14,7 +14,8 @@ import {
   type CasillaEditor, type FranjaEditable, type MateriaEditor, type Ocupacion,
 } from '../actions'
 
-type Turno = { dayOfWeek: number, teacherId: string | null, start: string, end: string }
+type Turno = { dayOfWeek: number, shift: 'morning' | 'afternoon', teacherId: string | null, start: string, end: string }
+const NOMBRE_TURNO = { morning: 'entrada', afternoon: 'salida' }
 
 const DIRECCION_DE_GRUPO = 'Dirección de grupo'
 const OTRA = '__otra'
@@ -51,7 +52,7 @@ function EditorHorario() {
   useEffect(() => {
     obtenerTurnosPuerta().then(r => {
       if (!r.exito || !r.turnos) return
-      const lista = r.turnos.map(t => ({ dayOfWeek: t.dayOfWeek, teacherId: t.teacherId, start: t.start, end: t.end }))
+      const lista = r.turnos.map(t => ({ dayOfWeek: t.dayOfWeek, shift: t.shift, teacherId: t.teacherId, start: t.start, end: t.end }))
       setTurnos(lista)
       setTurnosOriginal(JSON.stringify(lista))
     })
@@ -199,7 +200,8 @@ function EditorHorario() {
   const franjasGuardadas = editor?.franjas ?? []
   const esChoque = (dia: number, slotId: number) => choques.some(c => c.dia === dia && c.franja.id === slotId)
 
-  const cambiarTurno = (dia: number, cambios: Partial<Turno>) => setTurnos(turnos.map(t => (t.dayOfWeek === dia ? { ...t, ...cambios } : t)))
+  const cambiarTurno = (turno: Turno, cambios: Partial<Turno>) =>
+    setTurnos(turnos.map(t => (t.dayOfWeek === turno.dayOfWeek && t.shift === turno.shift ? { ...t, ...cambios } : t)))
 
   const guardarTurnos = async () => {
     setGuardando(true)
@@ -321,18 +323,18 @@ function EditorHorario() {
             {editor.curso.section === 'preescolar' && turnos.length > 0 && (
               <>
                 <h3 style={{ marginTop: '18px' }}>Turno de puerta</h3>
-                <p>El profesor que entrega a los niños cada día. Le aparece «Puerta» en su horario; a los estudiantes no.</p>
+                <p>El profesor que recibe a los niños (entrada) y el que los entrega (salida) cada día. Le aparece «Puerta» en su horario; a los estudiantes no.</p>
                 <div className={h.slotList}>
                   {turnos.map(t => (
-                    <div key={t.dayOfWeek} className={h.field}>
-                      {DIAS[t.dayOfWeek - 1]}
-                      <select className={h.select} value={t.teacherId ?? ''} onChange={e => cambiarTurno(t.dayOfWeek, { teacherId: e.target.value || null })}>
+                    <div key={`${t.dayOfWeek}-${t.shift}`} className={h.field}>
+                      {DIAS[t.dayOfWeek - 1]} · {NOMBRE_TURNO[t.shift]}
+                      <select className={h.select} value={t.teacherId ?? ''} onChange={e => cambiarTurno(t, { teacherId: e.target.value || null })}>
                         <option value="">— Sin asignar —</option>
                         {docentes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                       <div className={h.slotRow}>
-                        <input type="time" value={t.start} onChange={e => cambiarTurno(t.dayOfWeek, { start: e.target.value })} aria-label={`Inicio del turno del ${DIAS[t.dayOfWeek - 1]}`} />
-                        <input type="time" value={t.end} onChange={e => cambiarTurno(t.dayOfWeek, { end: e.target.value })} aria-label={`Fin del turno del ${DIAS[t.dayOfWeek - 1]}`} />
+                        <input type="time" value={t.start} onChange={e => cambiarTurno(t, { start: e.target.value })} aria-label={`Inicio del turno de ${NOMBRE_TURNO[t.shift]} del ${DIAS[t.dayOfWeek - 1]}`} />
+                        <input type="time" value={t.end} onChange={e => cambiarTurno(t, { end: e.target.value })} aria-label={`Fin del turno de ${NOMBRE_TURNO[t.shift]} del ${DIAS[t.dayOfWeek - 1]}`} />
                       </div>
                     </div>
                   ))}

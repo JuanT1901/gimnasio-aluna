@@ -153,15 +153,16 @@ export async function obtenerTurnosPuerta(): Promise<{ exito: boolean, error?: s
   return { exito: true, turnos: await cargarTurnosPuerta(getAdmin()) }
 }
 
-export async function guardarTurnosPuerta(turnos: { dayOfWeek: number, teacherId: string | null, start: string, end: string }[]) {
+export async function guardarTurnosPuerta(turnos: { dayOfWeek: number, shift: TurnoPuerta['shift'], teacherId: string | null, start: string, end: string }[]) {
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
 
   const filas = []
   for (const t of turnos) {
     if (!Number.isInteger(t.dayOfWeek) || t.dayOfWeek < 1 || t.dayOfWeek > 5) return { exito: false, error: 'Día no válido.' }
+    if (t.shift !== 'morning' && t.shift !== 'afternoon') return { exito: false, error: 'Turno no válido.' }
     if (!esHora(t.start) || !esHora(t.end) || t.start >= t.end) return { exito: false, error: 'Revisa las horas del turno de puerta.' }
-    filas.push({ day_of_week: t.dayOfWeek, teacher_id: t.teacherId || null, start_time: t.start, end_time: t.end, updated_at: new Date().toISOString() })
+    filas.push({ day_of_week: t.dayOfWeek, shift: t.shift, teacher_id: t.teacherId || null, start_time: t.start, end_time: t.end, updated_at: new Date().toISOString() })
   }
 
   const admin = getAdmin()
@@ -170,7 +171,7 @@ export async function guardarTurnosPuerta(turnos: { dayOfWeek: number, teacherId
     const { data } = await admin.from('profiles').select('id').eq('role', 'teacher').in('id', ids)
     if ((data || []).length !== ids.length) return { exito: false, error: 'Uno de los profesores no es válido.' }
   }
-  const { error } = await admin.from('door_duties').upsert(filas, { onConflict: 'day_of_week' })
+  const { error } = await admin.from('door_duties').upsert(filas, { onConflict: 'day_of_week,shift' })
   if (error) return { exito: false, error: error.message }
   return { exito: true }
 }

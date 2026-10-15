@@ -63,8 +63,7 @@ export type Colegio = {
   bankInfo: string | null
   cashInfo: string | null
   signaturePath: string | null
-  promotionMinGrade: number
-  promotionMaxLostAreas: number
+  promotionMinGrade: number // nota mínima para aprobar una materia; por debajo va a habilitación
 }
 
 export type TipoConfig = {
@@ -261,20 +260,17 @@ export function ordenarNotas(filas: FilaNotas[]): FilaNotas[] {
     .sort((a, b) => pos(a.area) - pos(b.area))
 }
 
-// Áreas perdidas: promedio de las definitivas de sus materias por debajo de la nota mínima
-export function areasPerdidas(filas: FilaNotas[], notaMinima: number) {
-  const porArea = new Map<string, (number | null)[]>()
-  for (const f of filas) {
-    if (!f.area) continue
-    porArea.set(f.area, [...(porArea.get(f.area) ?? []), f.def ?? promedio(f.p)])
-  }
-  let perdidas = 0
-  for (const defs of porArea.values()) {
-    const p = promedio(defs)
-    if (p !== null && p < notaMinima) perdidas++
-  }
-  return perdidas
-}
+// Nota de la materia: la definitiva o, mientras falten periodos, el promedio de los que ya hay
+export const notaMateria = (f: FilaNotas) => f.def ?? promedio(f.p)
+
+// Materias por debajo de la nota mínima: cada una va a habilitación
+export const materiasPerdidas = (filas: FilaNotas[], notaMinima: number) =>
+  filas.filter(f => { const n = notaMateria(f); return n !== null && n < notaMinima })
+
+// ---------- Habilitaciones ----------
+
+export type ResultadoHabilitacion = 'passed' | 'failed'
+export const RESULTADO_HABILITACION: Record<ResultadoHabilitacion, string> = { passed: 'Habilitada', failed: 'No habilitada' }
 
 export function formatoPrecio(precio: number | null) {
   if (precio === null || precio === undefined) return 'Por definir'

@@ -108,11 +108,11 @@ export async function obtenerHorario(objetivo: ObjetivoHorario, semana: string):
       adminEdited: p.adminEdited,
     }))
 
-  // Si el turno no coincide con una franja visible (preescolar termina a la 1), se agrega su fila
+  // Si el turno no coincide con una franja visible (preescolar va de 8 a 1), se agrega su fila
   const visiblesFranjas = franjas.filter(f => secciones.has(f.section))
   for (const p of puerta) {
     if (!visiblesFranjas.some(f => f.start === p.start && f.end === p.end)) {
-      visiblesFranjas.push({ id: -p.dayOfWeek, section: 'preescolar', start: p.start, end: p.end, isBreak: false })
+      visiblesFranjas.push({ id: p.id, section: 'preescolar', start: p.start, end: p.end, isBreak: false })
     }
   }
 

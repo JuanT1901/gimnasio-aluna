@@ -3,7 +3,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { FaSignOutAlt, FaHome, FaBars, FaTimes, FaCalendarAlt, FaPencilAlt, FaBell } from 'react-icons/fa'
+import { FaSignOutAlt, FaHome, FaBars, FaTimes, FaCalendarAlt, FaPencilAlt, FaBell, FaRedoAlt } from 'react-icons/fa'
 import { useEffect, useState } from 'react'
 import sidebarStyles from 'app/styles/components/PlatformSidebar.module.scss'
 import horarioStyles from 'app/styles/pages/Horario.module.scss'
@@ -104,6 +104,13 @@ export default function TeacherSidebar() {
             style={{ ...btnStyle, backgroundColor: pathname?.includes('/planeacion') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/planeacion') ? '#10b981' : '#f8fafc' }}
           >
             <FaPencilAlt /> Planeación Semanal
+          </Link>
+
+          <Link
+            href="/plataformas/profesores/habilitaciones"
+            style={{ ...btnStyle, backgroundColor: pathname?.includes('/habilitaciones') ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: pathname?.includes('/habilitaciones') ? '#10b981' : '#f8fafc' }}
+          >
+            <FaRedoAlt /> Habilitaciones
           </Link>
 
           <Link
