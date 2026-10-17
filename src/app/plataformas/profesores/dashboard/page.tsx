@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { FaUsers, FaBook, FaSpinner, FaCrown, FaStar, FaChevronDown, FaChevronUp, FaChevronRight, FaFilePdf, FaBell } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { contarNotificacionesNoLeidas } from '../notificaciones/actions'
+import { normalizarTexto } from 'app/utils/horario/comun'
 
 export default function ProfesorDashboard() {
   const [cursosAgrupados, setCursosAgrupados] = useState<Record<string, any[]>>({})
@@ -42,7 +43,16 @@ export default function ProfesorDashboard() {
         .eq('teacher_id', user.id)
 
       if (asignaciones) {
-        const agrupado = asignaciones.reduce((acc: any, asig) => {
+        // Las materias que no se califican (solo horario y planeación) no llevan planilla
+        const gradeIds = [...new Set(asignaciones.map(a => a.grade_id).filter(Boolean))]
+        const { data: sinNota } = gradeIds.length
+          ? await supabase.from('subjects').select('id, name, grade_id').eq('is_graded', false).in('grade_id', gradeIds)
+          : { data: [] as any[] }
+        const noSeCalifica = (asig: any) => (sinNota || []).some(m => m.grade_id === asig.grade_id && (
+          m.id === asig.subject_id || (!!asig.subject_name && normalizarTexto(m.name) === normalizarTexto(asig.subject_name))
+        ))
+
+        const agrupado = asignaciones.map(asig => ({ ...asig, noSeCalifica: noSeCalifica(asig) })).reduce((acc: any, asig) => {
           if (!acc[asig.course_name]) {
             acc[asig.course_name] = []
           }
@@ -188,6 +198,22 @@ export default function ProfesorDashboard() {
                   {estaExpandido && (
                     <div style={{ padding: '15px 25px', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#ffffff' }}>
                       {materiasDelCurso.map((materia: any) => {
+                        if (materia.noSeCalifica) {
+                          return (
+                            <Link
+                              href="/plataformas/profesores/planeacion"
+                              key={materia.id}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', textDecoration: 'none', color: '#334155', border: '1px dashed #cbd5e1' }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '500', flexWrap: 'wrap' }}>
+                                <FaBook color="#94a3b8" /> {materia.subject_name}
+                                <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 400 }}>No se califica · ir a la planeación semanal</span>
+                              </div>
+                              <FaChevronRight color="#94a3b8" size={14} />
+                            </Link>
+                          )
+                        }
+
                         
                         // Asignación de ruta dependiendo del bloque del colegio
                         let rutaPlanilla = `/plataformas/profesores/planilla-avanzada?curso=${encodeURIComponent(nombreCurso)}&materia=${encodeURIComponent(materia.subject_name)}` // Por defecto, Avanzada

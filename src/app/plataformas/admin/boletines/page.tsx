@@ -75,6 +75,7 @@ export default function AdminBoletinesPage() {
           .from('subjects')
           .select('id, name')
           .eq('grade_id', gradeData.id)
+          .eq('is_graded', true)
           .order('name')
         if (matsData) setMateriasCurso(matsData)
       }

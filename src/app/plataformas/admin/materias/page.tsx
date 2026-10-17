@@ -3,9 +3,9 @@
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { FaBook, FaSpinner, FaEdit, FaCheck, FaTimes, FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaLayerGroup } from 'react-icons/fa'
+import { FaBook, FaSpinner, FaEdit, FaCheck, FaTimes, FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaLayerGroup, FaBan, FaClipboardCheck } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
-import { renombrarMateria, crearMateria, eliminarMateria } from './actions'
+import { renombrarMateria, crearMateria, eliminarMateria, cambiarSeCalifica } from './actions'
 import { buscarArea, COLORES_AREA } from 'app/utils/areas'
 
 const CURSOS_PREESCOLAR = ['Aventureros', 'Creativos', 'Expertos']
@@ -43,6 +43,7 @@ export default function MallaCurricularPage() {
   const [guardando, setGuardando] = useState(false)
 
   const [nuevaMateria, setNuevaMateria] = useState('')
+  const [nuevaSeCalifica, setNuevaSeCalifica] = useState(true)
   const [agregandoEnCurso, setAgregandoEnCurso] = useState<number | null>(null)
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function MallaCurricularPage() {
 
     const { data: materiasData } = await supabase
       .from('subjects')
-      .select('id, name, grade_id')
+      .select('id, name, grade_id, is_graded')
       .order('name', { ascending: true })
 
     if (materiasData && cursosData) {
@@ -107,7 +108,7 @@ export default function MallaCurricularPage() {
   const agregarMateria = async (gradeId: number) => {
     if (!nuevaMateria.trim()) return
     setGuardando(true)
-    const resultado = await crearMateria(gradeId, nuevaMateria)
+    const resultado = await crearMateria(gradeId, nuevaMateria, nuevaSeCalifica)
     setGuardando(false)
 
     if (resultado.exito && resultado.data) {
@@ -116,6 +117,7 @@ export default function MallaCurricularPage() {
         [gradeId]: [...(prev[gradeId] || []), resultado.data].sort((a, b) => a.name.localeCompare(b.name))
       }))
       setNuevaMateria('')
+      setNuevaSeCalifica(true)
       setAgregandoEnCurso(null)
     } else {
       alert('Error: ' + resultado.error)
@@ -135,6 +137,26 @@ export default function MallaCurricularPage() {
       }))
     } else {
       alert(resultado.error)
+    }
+  }
+
+  const alternarSeCalifica = async (materia: any, gradeId: number) => {
+    const seCalifica = materia.is_graded === false
+    const aviso = seCalifica
+      ? `«${materia.name}» volverá a aparecer en las planillas y en los boletines. ¿Continuar?`
+      : `«${materia.name}» seguirá en el horario y en la planeación semanal, pero ya no aparecerá en las planillas ni en los boletines. ¿Continuar?`
+    if (!confirm(aviso)) return
+    setGuardando(true)
+    const resultado = await cambiarSeCalifica(materia.id, seCalifica)
+    setGuardando(false)
+
+    if (resultado.exito) {
+      setMateriasPorCurso(prev => ({
+        ...prev,
+        [gradeId]: prev[gradeId].map(m => m.id === materia.id ? { ...m, is_graded: seCalifica } : m)
+      }))
+    } else {
+      alert('Error: ' + resultado.error)
     }
   }
 
@@ -159,8 +181,18 @@ export default function MallaCurricularPage() {
         </div>
       ) : (
         <>
-          <span style={{ color: '#334155', fontWeight: '500' }}>{materia.name}</span>
+          <span style={{ color: '#334155', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {materia.name}
+            {materia.is_graded === false && (
+              <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '999px' }}>
+                No se califica · solo horario y planeación
+              </span>
+            )}
+          </span>
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => alternarSeCalifica(materia, gradeId)} disabled={guardando} style={{ backgroundColor: materia.is_graded === false ? '#f1f5f9' : '#f0fdf4', color: materia.is_graded === false ? '#64748b' : '#15803d', border: 'none', padding: '7px', borderRadius: '6px', cursor: 'pointer' }} title={materia.is_graded === false ? 'No se califica. Clic para que se califique' : 'Se califica. Clic para que no se califique'}>
+              {materia.is_graded === false ? <FaBan size={13} /> : <FaClipboardCheck size={13} />}
+            </button>
             <button onClick={() => iniciarEdicion(materia)} style={{ backgroundColor: '#eff6ff', color: '#3b82f6', border: 'none', padding: '7px', borderRadius: '6px', cursor: 'pointer' }} title="Renombrar">
               <FaEdit size={13} />
             </button>
@@ -239,7 +271,7 @@ export default function MallaCurricularPage() {
                   )}
 
                   {agregandoEnCurso === curso.id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px', flexWrap: 'wrap' }}>
                       <input
                         type="text"
                         value={nuevaMateria}
@@ -247,18 +279,22 @@ export default function MallaCurricularPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') agregarMateria(curso.id); if (e.key === 'Escape') { setAgregandoEnCurso(null); setNuevaMateria('') } }}
                         placeholder="Nombre de la nueva materia"
                         autoFocus
-                        style={{ flex: 1, padding: '10px 12px', borderRadius: '6px', border: '2px solid #10b981', fontSize: '0.95rem', outline: 'none' }}
+                        style={{ flex: 1, minWidth: '180px', padding: '10px 12px', borderRadius: '6px', border: '2px solid #10b981', fontSize: '0.95rem', outline: 'none' }}
                       />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.9rem', cursor: 'pointer' }} title="Desmárcala para materias que solo se ven en el horario y la planeación">
+                        <input type="checkbox" checked={nuevaSeCalifica} onChange={(e) => setNuevaSeCalifica(e.target.checked)} />
+                        Se califica
+                      </label>
                       <button onClick={() => agregarMateria(curso.id)} disabled={guardando} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {guardando ? <FaSpinner className="fa-spin" size={14} /> : <FaCheck size={14} />} Agregar
                       </button>
-                      <button onClick={() => { setAgregandoEnCurso(null); setNuevaMateria('') }} style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px', borderRadius: '6px', cursor: 'pointer' }}>
+                      <button onClick={() => { setAgregandoEnCurso(null); setNuevaMateria(''); setNuevaSeCalifica(true) }} style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px', borderRadius: '6px', cursor: 'pointer' }}>
                         <FaTimes size={14} />
                       </button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAgregandoEnCurso(curso.id); setNuevaMateria('') }}
+                      onClick={() => { setAgregandoEnCurso(curso.id); setNuevaMateria(''); setNuevaSeCalifica(true) }}
                       style={{ marginTop: '15px', backgroundColor: '#f0fdf4', color: '#15803d', border: '1px dashed #86efac', padding: '10px', borderRadius: '8px', cursor: 'pointer', width: '100%', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
                     >
                       <FaPlus size={12} /> Agregar Materia

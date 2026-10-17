@@ -30,10 +30,12 @@ import {
   FaCog,
   FaFlagCheckered,
   FaRedoAlt,
+  FaClipboardList,
 } from "react-icons/fa";
 import sidebarStyles from "app/styles/components/PlatformSidebar.module.scss";
 import horarioStyles from "app/styles/pages/Horario.module.scss";
 import { contarSolicitudesNuevas } from "app/app/plataformas/admin/certificados/actions";
+import { contarInscripcionesNuevas } from "app/app/plataformas/admin/inscripciones/actions";
 
 export default function AdminSidebar() {
   const router = useRouter();
@@ -72,9 +74,11 @@ export default function AdminSidebar() {
 
   // Aviso de solicitudes de certificados nuevas: al cambiar de página y cada 2 minutos
   const [solicitudesNuevas, setSolicitudesNuevas] = useState(0);
+  const [inscripcionesNuevas, setInscripcionesNuevas] = useState(0);
   useEffect(() => {
     const actualizar = () => {
       contarSolicitudesNuevas().then(setSolicitudesNuevas).catch(() => {});
+      contarInscripcionesNuevas().then(setInscripcionesNuevas).catch(() => {});
     };
     actualizar();
     const intervalo = setInterval(actualizar, 120000);
@@ -197,6 +201,26 @@ export default function AdminSidebar() {
             }}
           >
             <FaHome /> Inicio
+          </Link>
+
+          <Link
+            href="/plataformas/admin/inscripciones"
+            style={{
+              ...btnStyle,
+              justifyContent: "flex-start",
+              gap: "10px",
+              backgroundColor: pathname?.startsWith("/plataformas/admin/inscripciones")
+                ? "rgba(56, 189, 248, 0.1)"
+                : "transparent",
+              color: pathname?.startsWith("/plataformas/admin/inscripciones") ? "#38bdf8" : "#f8fafc",
+            }}
+          >
+            <FaClipboardList /> Inscripciones
+            {inscripcionesNuevas > 0 && (
+              <span className={horarioStyles.badge} title="Solicitudes de inscripción nuevas">
+                {inscripcionesNuevas > 99 ? "99+" : inscripcionesNuevas}
+              </span>
+            )}
           </Link>
 
           <div>

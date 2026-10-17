@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { FaSpinner, FaSave, FaCheckCircle, FaSeedling } from 'react-icons/fa'
 import { guardarSugerenciasPreescolar } from './actions'
+import { normalizarTexto } from 'app/utils/horario/comun'
 
 export default function SugerenciasPreescolarPage() {
   const [periodo, setPeriodo] = useState('1')
@@ -26,12 +27,21 @@ export default function SugerenciasPreescolarPage() {
 
       const { data: asignaciones } = await supabase
         .from('teacher_assignments')
-        .select('subject_name')
+        .select('subject_name, subject_id, grade_id')
         .in('course_name', ['Aventureros', 'Creativos', 'Expertos'])
+
+      // Las materias que no se califican no llevan sugerencia en el boletín
+      const { data: sinNota } = await supabase
+        .from('subjects')
+        .select('id, name, grade_id')
+        .eq('is_graded', false)
+      const noSeCalifica = (a: any) => (sinNota || []).some(m => m.grade_id === a.grade_id && (
+        m.id === a.subject_id || normalizarTexto(m.name) === normalizarTexto(a.subject_name)
+      ))
 
       if (asignaciones) {
         const dimensionesUnicas = Array.from(new Set(
-          asignaciones.map((a: any) => a.subject_name.split('(')[0].trim())
+          asignaciones.filter((a: any) => !noSeCalifica(a)).map((a: any) => a.subject_name.split('(')[0].trim())
         ))
 
         if (!dimensionesUnicas.includes('Dimensión socio-afectiva')) {

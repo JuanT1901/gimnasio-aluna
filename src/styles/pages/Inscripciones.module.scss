@@ -1,0 +1,82 @@
+$ink: #0f172a;
+$muted: #64748b;
+$line: #e2e8f0;
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+// Campo que ya llenó el otro acudiente: se ve que está, pero no su contenido
+.locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed #86efac;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.help {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: $muted;
+}
+
+.docStep {
+  max-width: 560px;
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    @media (max-width: 600px) { grid-template-columns: 1fr; }
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.sticky {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid $line;
+  padding: 12px 0;
+  z-index: 2;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 0.88rem;
+  color: $ink;
+
+  span { color: $muted; }
+}
+
+.userCheck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.userOk { color: #15803d; font-size: 0.85rem; font-weight: 600; }
+.userNo { color: #b91c1c; font-size: 0.85rem; font-weight: 600; }

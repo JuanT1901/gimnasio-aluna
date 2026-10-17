@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import styles from 'app/styles/quiero-ser-parte/QuieroSerParte.module.scss';
 import { FaFileSignature, FaChalkboardTeacher, FaHandshake } from 'react-icons/fa';
 
@@ -13,8 +14,8 @@ const steps = [
         subtitle: "Formulario de inscripción:", 
         text: "Diligenciamiento en línea a través del portal del colegio o de manera presencial.",
         actionLink: {
-          text: "Inicia tu camino con Ludo Club",
-          url: "https://docs.google.com/forms/d/e/1FAIpQLSf15fbJqaF4OcWI9nveTyX0djGiNmeXdIsJhePiiSYh7ja_Cw/viewform?usp=header"
+          text: "Llenar el formulario de inscripción",
+          url: "/quiero-ser-parte/inscripcion"
         }
       },
       { 
@@ -82,14 +83,9 @@ export default function QuieroSerParte() {
                   <p>{item.text}</p>
                   
                   {item.actionLink && (
-                    <a 
-                      href={item.actionLink.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={styles.ctaLink}
-                    >
-                      {item.actionLink.text} →
-                    </a>
+                    <Link href={item.actionLink.url} className={styles.ctaLink}>
+                      <FaFileSignature /> {item.actionLink.text} →
+                    </Link>
                   )}
                 </div>
               ))}

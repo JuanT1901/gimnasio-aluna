@@ -44,7 +44,7 @@ export async function renombrarMateria(subjectId: number, nuevoNombre: string) {
   return { exito: true }
 }
 
-export async function crearMateria(gradeId: number, nombre: string) {
+export async function crearMateria(gradeId: number, nombre: string, seCalifica = true) {
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
 
@@ -55,11 +55,25 @@ export async function crearMateria(gradeId: number, nombre: string) {
 
   const { data, error } = await supabase
     .from('subjects')
-    .insert({ name: nombreLimpio, grade_id: gradeId })
+    .insert({ name: nombreLimpio, grade_id: gradeId, is_graded: seCalifica })
     .select()
 
   if (error) return { exito: false, error: error.message }
   return { exito: true, data: data?.[0] || null }
+}
+
+// Una materia que no se califica sigue en el horario y la planeación, pero no sale en planillas ni boletines
+export async function cambiarSeCalifica(subjectId: string, seCalifica: boolean) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+
+  const { error } = await getAdmin()
+    .from('subjects')
+    .update({ is_graded: seCalifica })
+    .eq('id', subjectId)
+
+  if (error) return { exito: false, error: error.message }
+  return { exito: true }
 }
 
 export async function eliminarMateria(subjectId: number) {

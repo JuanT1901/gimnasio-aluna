@@ -130,20 +130,31 @@
   }
 }
 
+// Botón principal para abrir el formulario de inscripción: debe notarse que se puede oprimir
 .ctaLink {
-  display: inline-block;
-  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #1976D2;
+  color: white;
   font-weight: 700;
-  color: #3CA0E8;
+  font-size: 1rem;
   text-decoration: none;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  border-bottom: 2px solid transparent;
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 
   &:hover {
-    color: #1976D2;
-    border-bottom-color: #1976D2;
-    transform: translateX(4px);
+    background: #0D47A1;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(13, 71, 161, 0.4);
+  }
+
+  &:focus-visible {
+    outline: 3px solid #0D47A1;
+    outline-offset: 3px;
   }
 }
 
