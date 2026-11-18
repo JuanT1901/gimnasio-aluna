@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useEffect, useState, Fragment } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FaSpinner, FaPrint, FaThumbsUp } from 'react-icons/fa'
 import { usePrintScale } from 'app/hooks/usePrintScale'
+import { useFormatoPapel } from 'app/hooks/useFormatoPapel'
+import FirmasBoletin from 'app/components/boletines/FirmasBoletin'
+import LoteBoletines, { type OpcionesLote } from 'app/components/boletines/LoteBoletines'
 
 const CURSOS_BACHILLERATO = ['Innovadores', 'Conquistadores', 'Gnomos', 'Duendes', 'Elfos'];
 
@@ -71,10 +74,7 @@ for (const [key, value] of Object.entries(MAPA_AREAS_RAW)) {
 
 const buscarArea = (nombre: string) => MAPA_AREAS[normalizar(nombre)] || 'Otras Áreas';
 
-function ContenidoBoletinBachilleratoPDF() {
-  const searchParams = useSearchParams()
-  const estudianteId = searchParams.get('estudiante')
-  const periodo = searchParams.get('periodo')
+function ContenidoBoletinBachilleratoPDF({ estudianteId, periodo, lote }: { estudianteId: string | null, periodo: string | null, lote?: OpcionesLote }) {
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -86,11 +86,21 @@ function ContenidoBoletinBachilleratoPDF() {
   const [evaluacionesAgrupadas, setEvaluacionesAgrupadas] = useState<any[]>([])
   const [director, setDirector] = useState<any>(null)
   
-  const [formatoPapel, setFormatoPapel] = useState('letter')
+  const [formatoLocal, setFormatoPapel] = useFormatoPapel()
+  const formatoPapel = lote?.formatoPapel ?? formatoLocal
   const [errorNivel, setErrorNivel] = useState(false);
   const [sinPermiso, setSinPermiso] = useState(false);
 
   const { contentRef, scale, hostHeight } = usePrintScale([cargando, formatoPapel])
+
+  // ¿El estudiante no tiene ninguna calificación académica en el periodo? (el lote no lo imprime)
+  const sinNotasRef = useRef(true)
+
+  // En modo lote, avisa cuando este boletín terminó de cargar
+  useEffect(() => {
+    if (!cargando) lote?.onListo(sinNotasRef.current)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargando])
 
   useEffect(() => {
     if (!estudianteId || !periodo) return
@@ -122,7 +132,8 @@ function ContenidoBoletinBachilleratoPDF() {
           .eq('student_id', estudianteId)
           .eq('period', parseInt(periodo))
         
-        let evaluacionesCrudas = evalData ? [...evalData] : [];
+        const evaluacionesCrudas = evalData ? [...evalData] : [];
+        sinNotasRef.current = !(evalData || []).some((e: any) => e.competencies_data && e.competencies_data.length > 0);
 
         // Comportamiento
         const { data: compData } = await supabase
@@ -198,7 +209,7 @@ function ContenidoBoletinBachilleratoPDF() {
 
         const { data: cursoData } = await supabase.from('grades').select('director_id').eq('name', estData.course_name).single()
         if (cursoData?.director_id) {
-          const { data: dirData } = await supabase.from('profiles').select('full_name').eq('id', cursoData.director_id).single()
+          const { data: dirData } = await supabase.from('profiles').select('full_name, role').eq('id', cursoData.director_id).single()
           setDirector(dirData)
         }
       }
@@ -229,8 +240,12 @@ function ContenidoBoletinBachilleratoPDF() {
       .print-wrapper { padding: 0 !important; background-color: white !important; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
       .no-print { display: none !important; }
+      /* Tamaño de impresión: todas las letras están en rem, así que bajar la base las reduce en proporción */
+      html { font-size: 13px !important; }
+      td[style*="justify"] { padding: 6px 8px !important; }
       thead { display: table-header-group !important; }
       tr.salto-pagina { page-break-inside: avoid !important; }
+      th, td { padding: 6px 8px; }
       tbody.bloque-titulo { break-inside: avoid !important; page-break-inside: avoid !important; }
       tbody.bloque-titulo tr:not(:last-child) { break-after: avoid !important; page-break-after: avoid !important; }
     }
@@ -281,10 +296,10 @@ function ContenidoBoletinBachilleratoPDF() {
   }
 
   return (
-    <div className="print-wrapper" style={{ backgroundColor: '#f1f5f9', minHeight: '100vh', padding: '20px 0' }}>
+    <div className="print-wrapper" style={lote ? { backgroundColor: '#f1f5f9', paddingBottom: '20px' } : { backgroundColor: '#f1f5f9', minHeight: '100vh', padding: '20px 0' }}>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      
-      <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
+
+      {!lote && <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
           <strong style={{ color: '#475569', fontSize: '0.9rem' }}>Formato:</strong>
           <select value={formatoPapel} onChange={(e) => setFormatoPapel(e.target.value)} style={{ border: 'none', fontWeight: 'bold', outline: 'none', background: 'transparent' }}>
@@ -293,10 +308,11 @@ function ContenidoBoletinBachilleratoPDF() {
             <option value="A4">Tamaño A4</option>
           </select>
         </div>
+        <span style={{ color: '#64748b', fontSize: '0.8rem', maxWidth: '260px', lineHeight: 1.3 }}>En el cuadro de impresión elija el mismo tamaño de papel (en &quot;Más opciones&quot;).</span>
         <button onClick={() => window.print()} style={{ backgroundColor: '#3b82f6', color: 'white', padding: '12px 25px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
           <FaPrint /> Imprimir Boletín
         </button>
-      </div>
+      </div>}
 
       <div className="print-scale-host" style={{ overflow: scale < 1 ? 'hidden' : 'visible', height: hostHeight, width: '100%' }}>
       <div ref={contentRef} className="page-container print-wrapper" style={{ transform: scale < 1 ? `scale(${scale})` : undefined, margin: scale < 1 ? '0' : undefined }}>
@@ -433,21 +449,38 @@ function ContenidoBoletinBachilleratoPDF() {
           </div>
         </div>
 
-        <footer style={{ marginTop: '90px', textAlign: 'center', pageBreakInside: 'avoid' }}>
-          <div style={{ borderTop: '1px solid #1e293b', width: '250px', margin: '0 auto 5px auto' }}></div>
-          <strong style={{ textTransform: 'uppercase' }}>{director?.full_name || 'Director(a) de Grupo'}</strong>
-          <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Firma Autorizada</p>
-        </footer>
+        <FirmasBoletin director={director} />
       </div>
       </div>
     </div>
   )
 }
 
+// ?estudiante=<id>&periodo=N → un boletín; ?curso=<nombre>&periodo=N → todos los del curso (solo rectoría)
+function RutaBoletinBachillerato() {
+  const searchParams = useSearchParams()
+  const curso = searchParams.get('curso')
+  const periodo = searchParams.get('periodo')
+
+  if (curso && periodo) {
+    return (
+      <LoteBoletines
+        curso={curso}
+        periodo={periodo}
+        cursosValidos={CURSOS_BACHILLERATO}
+        nombreNivel="Bachillerato"
+        renderBoletin={(id, lote) => <ContenidoBoletinBachilleratoPDF estudianteId={id} periodo={periodo} lote={lote} />}
+      />
+    )
+  }
+
+  return <ContenidoBoletinBachilleratoPDF estudianteId={searchParams.get('estudiante')} periodo={periodo} />
+}
+
 export default function BoletinBachilleratoPDF() {
   return (
     <Suspense fallback={<div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={40} color="#3b82f6" /></div>}>
-      <ContenidoBoletinBachilleratoPDF />
+      <RutaBoletinBachillerato />
     </Suspense>
   )
 }

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { FaFilePdf, FaEye, FaEyeSlash, FaSpinner, FaGraduationCap, FaArrowLeft, FaUsers, FaCheckDouble, FaEdit, FaBook } from 'react-icons/fa'
+import { FaFilePdf, FaEye, FaEyeSlash, FaSpinner, FaGraduationCap, FaArrowLeft, FaUsers, FaCheckDouble, FaEdit, FaBook, FaPrint } from 'react-icons/fa'
 import { togglePublicacion, publicarTodosBoletines } from './actions'
 import stylesDashboard from 'app/styles/pages/Dashboard.module.scss'
 
@@ -169,7 +169,7 @@ export default function AdminBoletinesPage() {
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: '15px' }}>
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
               <select 
                 value={periodo} 
                 onChange={(e) => setPeriodo(e.target.value)}
@@ -187,6 +187,14 @@ export default function AdminBoletinesPage() {
               >
                 {procesandoLote ? <FaSpinner className="fa-spin" /> : <FaCheckDouble />}
                 Publicar Todos
+              </button>
+
+              <button
+                onClick={() => window.open(`${obtenerRutaBoletin(cursoActivo)}?curso=${encodeURIComponent(cursoActivo)}&periodo=${periodo}`, '_blank')}
+                disabled={estudiantes.length === 0}
+                style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: estudiantes.length === 0 ? 'not-allowed' : 'pointer', opacity: estudiantes.length === 0 ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <FaPrint /> Imprimir Todos
               </button>
             </div>
           </header>
