@@ -231,6 +231,8 @@ function ContenidoBoletinBachilleratoPDF() {
       .no-print { display: none !important; }
       thead { display: table-header-group !important; }
       tr.salto-pagina { page-break-inside: avoid !important; }
+      tbody.bloque-titulo { break-inside: avoid !important; page-break-inside: avoid !important; }
+      tbody.bloque-titulo tr:not(:last-child) { break-after: avoid !important; page-break-after: avoid !important; }
     }
     @media print {
       .print-scale-host { overflow: visible !important; height: auto !important; }
@@ -324,45 +326,54 @@ function ContenidoBoletinBachilleratoPDF() {
               <th colSpan={3} style={{ width: '60%' }}>Descripción del Desempeño</th>
             </tr>
           </thead>
-          <tbody>
-            {evaluacionesAgrupadas.map((bloqueArea, idxA) => (
-              <Fragment key={idxA}>
-                <tr>
-                  <td colSpan={4} className="area-header">ÁREA: {bloqueArea.area}</td>
-                </tr>
+          {/* Cada asignatura se parte en dos <tbody>: el primero (área + asignatura + primera
+              competencia) no se divide entre hojas, así el título nunca queda solo al final de una página */}
+          {evaluacionesAgrupadas.map((bloqueArea, idxA) => (
+            <Fragment key={idxA}>
+              {bloqueArea.asignaturas.map((asignatura: any, idxAsig: number) => {
+                const esComportamiento = bloqueArea.area === 'Comportamiento'
+                const comps: any[] = asignatura.competencias
 
-                {bloqueArea.asignaturas.map((asignatura: any, idxAsig: number) => {
-                  const esComportamiento = bloqueArea.area === 'Comportamiento'
-                  return (
-                  <Fragment key={`${idxA}-${idxAsig}`}>
+                const filaCompetencia = (c: any, idxC: number) => (
+                  <tr key={idxC} className="salto-pagina">
+                    {esComportamiento ? (
+                      <td colSpan={4} style={{ textAlign: 'justify', padding: '10px 12px' }}>
+                        {c.desempeno || c.Desempeno || c.desempeño || "-"}
+                      </td>
+                    ) : (
+                      <>
+                        <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
+                          {(c.competencia || c.Competencia || "-").toUpperCase()}
+                        </td>
+                        <td colSpan={3} style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
+                      </>
+                    )}
+                  </tr>
+                )
+
+                return (
+                <Fragment key={`${idxA}-${idxAsig}`}>
+                  <tbody className="bloque-titulo">
+                    {idxAsig === 0 && (
+                      <tr>
+                        <td colSpan={4} className="area-header">ÁREA: {bloqueArea.area}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td colSpan={4} className="subject-header">ASIGNATURA: {asignatura.nombre}</td>
                     </tr>
 
-                    {asignatura.competencias.length > 0 ? (
-                      asignatura.competencias.map((c: any, idxC: number) => (
-                        <tr key={idxC} className="salto-pagina">
-                          {esComportamiento ? (
-                            <td colSpan={4} style={{ textAlign: 'justify', padding: '10px 12px' }}>
-                              {c.desempeno || c.Desempeno || c.desempeño || "-"}
-                            </td>
-                          ) : (
-                            <>
-                              <td style={{ textAlign: 'justify', padding: '10px 12px' }}>
-                                {(c.competencia || c.Competencia || "-").toUpperCase()}
-                              </td>
-                              <td colSpan={3} style={{ textAlign: 'justify', padding: '10px 12px' }}>{c.desempeno || c.Desempeno || c.desempeño || "-"}</td>
-                            </>
-                          )}
-                        </tr>
-                      ))
-                    ) : (
+                    {comps.length > 0 ? filaCompetencia(comps[0], 0) : (
                       <tr className="salto-pagina">
                         <td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: '10px' }}>
                           Sin competencias registradas.
                         </td>
                       </tr>
                     )}
+                  </tbody>
+
+                  <tbody>
+                    {comps.slice(1).map((c, i) => filaCompetencia(c, i + 1))}
 
                     {/* 🌟 LAS 3 CELDAS DE VALORACIÓN PERFECTAMENTE ALINEADAS */}
                     {!esComportamiento && (
@@ -378,12 +389,12 @@ function ContenidoBoletinBachilleratoPDF() {
                         </td>
                       </tr>
                     )}
-                  </Fragment>
-                  )
-                })}
-              </Fragment>
-            ))}
-          </tbody>
+                  </tbody>
+                </Fragment>
+                )
+              })}
+            </Fragment>
+          ))}
         </table>
 
         <div style={{ marginTop: '20px', border: '1px solid #1e293b', padding: '10px 15px', pageBreakInside: 'avoid' }}>
