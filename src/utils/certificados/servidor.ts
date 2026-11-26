@@ -5,7 +5,7 @@ import path from 'path'
 import { headers } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdmin, obtenerSesion } from 'app/utils/horario/servidor'
-import { hoyISO } from 'app/utils/horario/comun'
+import { hoyISO, normalizarTexto } from 'app/utils/horario/comun'
 import { aplicarHabilitaciones, cargarHabilitaciones } from 'app/utils/habilitaciones/servidor'
 import {
   type CamposCertificado, type Colegio, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
@@ -199,7 +199,40 @@ export async function notasActuales(admin: SupabaseClient, studentIds: string[])
     for (const e of pre || []) agregar(e.student_id, e.dimension, Number(e.period), notaDeCompetencias(e.competencies_data), true)
   }
 
-  return new Map([...resultado.entries()].map(([id, m]) => [id, ordenarNotas([...m.values()])]))
+  // Solo materias de la malla curricular del curso. Una materia que no está en la malla solo sale si tiene alguna nota
+  // (p. ej. un registro vacío que quedó de una planilla abierta). Las marcadas como «no se califica» nunca salen.
+  const malla = await mallaPorEstudiante(admin, [...resultado.keys()])
+  return new Map([...resultado.entries()].map(([id, m]) => {
+    const curso = malla.get(id)
+    const filas = [...m.values()].filter(f => {
+      const nombre = normalizarTexto(f.subject)
+      if (curso?.noSeCalifican.has(nombre)) return false
+      return curso?.seCalifican.has(nombre) || f.p.some(n => typeof n === 'number')
+    })
+    return [id, ordenarNotas(filas)]
+  }))
+}
+
+// Materias de la malla curricular (tabla subjects) del curso de cada estudiante, con el nombre normalizado
+async function mallaPorEstudiante(admin: SupabaseClient, studentIds: string[]) {
+  const resultado = new Map<string, { seCalifican: Set<string>, noSeCalifican: Set<string> }>()
+  if (!studentIds.length) return resultado
+  const perfiles: { id: string, grade_id: number | null }[] = []
+  for (let i = 0; i < studentIds.length; i += 200) {
+    const { data } = await admin.from('profiles').select('id, grade_id').in('id', studentIds.slice(i, i + 200))
+    perfiles.push(...(data || []))
+  }
+  const gradeIds = [...new Set(perfiles.map(p => p.grade_id).filter((g): g is number => g !== null))]
+  if (!gradeIds.length) return resultado
+  const { data: materias } = await admin.from('subjects').select('name, grade_id, is_graded').in('grade_id', gradeIds)
+  for (const p of perfiles) {
+    const delCurso = (materias || []).filter(m => m.grade_id === p.grade_id)
+    resultado.set(p.id, {
+      seCalifican: new Set(delCurso.filter(m => m.is_graded !== false).map(m => normalizarTexto(m.name ?? ''))),
+      noSeCalifican: new Set(delCurso.filter(m => m.is_graded === false).map(m => normalizarTexto(m.name ?? ''))),
+    })
+  }
+  return resultado
 }
 
 export async function notasParaCertificado(admin: SupabaseClient, est: Estudiante, anio: number, formato: FormatoNotas) {

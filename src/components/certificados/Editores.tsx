@@ -2,7 +2,7 @@
 
 // Formularios para corregir los datos y las notas de un certificado.
 // Los usan el detalle de una solicitud y la sección de certificados de prueba.
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { FaPlus, FaTrash } from 'react-icons/fa'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
@@ -71,6 +71,10 @@ export function EditorCampos({ tipo, campos, onCampos, formato, onFormato, aviso
 }
 
 export function EditorNotas({ notas, formato, onNotas }: { notas: FilaNotas[], formato: FormatoNotas, onNotas: (n: FilaNotas[]) => void }) {
+  // Texto de la casilla que se está escribiendo («3.» o «4,»). Si se convirtiera a número en cada tecla,
+  // «3.» quedaría en 3 y no se podría escribir el decimal. Al salir de la casilla se muestra la nota guardada.
+  const [escribiendo, setEscribiendo] = useState<{ celda: string, texto: string } | null>(null)
+
   const cambiarNota = (i: number, k: 'area' | 'subject' | 0 | 1 | 2, v: string) => {
     onNotas(notas.map((f, j) => {
       if (j !== i) return f
@@ -84,6 +88,15 @@ export function EditorNotas({ notas, formato, onNotas }: { notas: FilaNotas[], f
     }))
   }
 
+  const escribirNota = (i: number, p: 0 | 1 | 2, v: string) => {
+    // Solo dígitos y un separador decimal (punto o coma)
+    if (!/^\d{0,1}([.,]\d{0,2})?$/.test(v)) return
+    setEscribiendo({ celda: `${i}-${p}`, texto: v })
+    cambiarNota(i, p, v)
+  }
+  const textoNota = (i: number, p: number, n: number | null) =>
+    escribiendo?.celda === `${i}-${p}` ? escribiendo.texto : n ?? ''
+
   return (
     <>
       <div className={c.tableWrap}>
@@ -95,7 +108,10 @@ export function EditorNotas({ notas, formato, onNotas }: { notas: FilaNotas[], f
                 {formato !== 'preescolar' && <td><input value={f.area} onChange={e => cambiarNota(i, 'area', e.target.value)} aria-label="Área" /></td>}
                 <td><input value={f.subject} onChange={e => cambiarNota(i, 'subject', e.target.value)} aria-label="Asignatura" /></td>
                 {[0, 1, 2].map(p => (
-                  <td key={p} className={c.num}><input inputMode="decimal" value={f.p[p] ?? ''} onChange={e => cambiarNota(i, p as 0 | 1 | 2, e.target.value)} aria-label={`Periodo ${p + 1}`} /></td>
+                  <td key={p} className={c.num}>
+                    <input inputMode="decimal" value={textoNota(i, p, f.p[p])} onChange={e => escribirNota(i, p as 0 | 1 | 2, e.target.value)}
+                      onBlur={() => setEscribiendo(null)} aria-label={`Periodo ${p + 1}`} />
+                  </td>
                 ))}
                 <td className={c.def}>{typeof f.def === 'number' ? f.def.toFixed(1) : ''}</td>
                 <td><button type="button" className={h.iconBtn} onClick={() => onNotas(notas.filter((_, j) => j !== i))} aria-label="Quitar fila"><FaTrash size={11} /></button></td>
