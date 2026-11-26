@@ -1,0 +1,65 @@
+// Proceso de matrícula (rectora y estudiantes)
+$ink: #0f172a;
+$ink-2: #334155;
+$muted: #64748b;
+$line: #e2e8f0;
+$line-2: #f1f5f9;
+$mobile: 768px;
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  gap: 20px;
+  align-items: start;
+
+  @media (max-width: 980px) { grid-template-columns: 1fr; }
+}
+
+.list { display: flex; flex-direction: column; gap: 14px; }
+
+.post {
+  background: white;
+  border: 1px solid $line;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.postHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+
+  h3 { margin: 0; font-size: 1.02rem; color: $ink; }
+}
+
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.78rem; color: $muted; margin-top: 4px; }
+
+// El comentario respeta los saltos de línea que escribe la rectora
+.comment { margin: 0; font-size: 0.9rem; color: $ink-2; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.files { display: flex; flex-direction: column; gap: 8px; }
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid $line;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fbfcfd;
+
+  @media (max-width: $mobile) { flex-wrap: wrap; }
+}
+
+.fileIcon { flex-shrink: 0; width: 22px; height: 22px; }
+.fileName { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 0.88rem; color: $ink; overflow-wrap: anywhere; }
+.fileSize { font-size: 0.75rem; color: $muted; }
+
+.actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.picked { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pickedItem { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: $ink-2; background: $line-2; border-radius: 8px; padding: 6px 10px; }

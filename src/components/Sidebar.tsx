@@ -18,7 +18,8 @@ import {
   FaCalendarAlt,
   FaFileAlt,
   FaPlus,
-  FaList
+  FaList,
+  FaFolderOpen
 } from 'react-icons/fa'
 
 export default function Sidebar() {
@@ -97,6 +98,13 @@ export default function Sidebar() {
             className={isActive('/plataformas/estudiantes/boletines')}
           >
             <FaFileSignature /> Mis Boletines
+          </Link>
+
+          <Link
+            href="/plataformas/estudiantes/matricula"
+            className={isActive('/plataformas/estudiantes/matricula')}
+          >
+            <FaFolderOpen /> Proceso de matrícula
           </Link>
 
           <details className={styles.detailsMenu} open={isCertificadoActive}>

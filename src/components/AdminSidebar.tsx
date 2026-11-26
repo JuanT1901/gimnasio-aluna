@@ -29,6 +29,7 @@ import {
   FaFileAlt,
   FaCog,
   FaFlask,
+  FaFolderOpen,
   FaFlagCheckered,
   FaRedoAlt,
   FaClipboardList,
@@ -686,6 +687,26 @@ export default function AdminSidebar() {
               }}
             >
               <FaBullhorn /> Gestión de Circulares
+            </Link>
+          </div>
+
+          <div>
+            <Link
+              href="/plataformas/admin/matricula"
+              style={{
+                ...btnStyle,
+                justifyContent: "flex-start",
+                gap: "10px",
+                backgroundColor: pathname?.startsWith("/plataformas/admin/matricula")
+                  ? "rgba(56, 189, 248, 0.1)"
+                  : "transparent",
+                color: pathname?.startsWith("/plataformas/admin/matricula")
+                  ? "#38bdf8"
+                  : "#f8fafc",
+                marginTop: "10px",
+              }}
+            >
+              <FaFolderOpen /> Proceso de matrícula
             </Link>
           </div>
 
