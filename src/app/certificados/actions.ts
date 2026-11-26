@@ -6,8 +6,8 @@ import {
   esCorreo, soloDigitos, variantesDocumento,
 } from 'app/utils/certificados/servidor'
 
-// Los exalumnos solo piden certificados de promoción y de notas (el de estudio es para estudiantes actuales)
-const TIPOS_PUBLICOS: TipoCertificado[] = ['promocion', 'notas']
+// Los exalumnos piden certificados de promoción, notas y conducta (el de estudio es para estudiantes actuales)
+const TIPOS_PUBLICOS: TipoCertificado[] = ['promocion', 'notas', 'conducta']
 
 export async function obtenerDatosPublicos(): Promise<{ tipos: TipoConfig[], anioActivo: number, pago: { banco: string | null, efectivo: string | null } }> {
   const admin = getAdmin()

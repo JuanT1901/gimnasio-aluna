@@ -1,7 +1,13 @@
 // Tipos y utilidades de certificados y fin de año que se usan en el cliente y en el servidor.
-import { normalizarTexto } from 'app/utils/horario/comun'
+import { hoyISO, normalizarTexto } from 'app/utils/horario/comun'
 
-export type TipoCertificado = 'estudio' | 'promocion' | 'notas'
+export type TipoCertificado = 'estudio' | 'promocion' | 'notas' | 'conducta'
+// El de estudio es siempre del año en curso; los demás se piden para un año lectivo (también los exalumnos)
+export const tieneAnio = (tipo: TipoCertificado | null | undefined) => tipo === 'promocion' || tipo === 'notas' || tipo === 'conducta'
+
+// En el certificado de conducta no se usan notas: la rectora elige la conducta
+export const CONDUCTAS = ['Buena', 'Excelente'] as const
+export type Conducta = typeof CONDUCTAS[number]
 export type EstadoSolicitud = 'pending_payment' | 'in_review' | 'payment_requested' | 'sent'
 export type FormatoNotas = 'preescolar' | 'primaria' | 'secundaria'
 export type ResultadoAnio = 'promoted' | 'repeat' | 'left' | 'graduated'
@@ -86,6 +92,7 @@ export type CamposCertificado = {
   anio: number | null // año lectivo del certificado de notas o de promoción
   matricula?: number | null // solo en el de estudio, si el acudiente pidió los costos
   pension?: number | null
+  conducta?: Conducta | null // solo en el de conducta; mientras la rectora no la elija queda vacía
 }
 
 export type FilaNotas = { area: string, subject: string, p: (number | null)[], def: number | null }
@@ -151,7 +158,7 @@ export function fechaCierre(iso: string) {
 // ---------- Texto del certificado (el mismo para la vista previa y el PDF) ----------
 
 export type Segmento = { t: string, b?: boolean }
-export type TextoCertificado = { fecha: string, fechaAlDerecha: boolean, parrafo: Segmento[], cierre: string | null }
+export type TextoCertificado = { fecha: string, fechaAlDerecha: boolean, titulo?: string, parrafo: Segmento[], cierre: string | null }
 
 const capitalizarNivel = (nivel: string) => nivel.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 
@@ -178,6 +185,22 @@ export function textoCertificado(tipo: TipoCertificado, c: CamposCertificado, co
     ].filter(Boolean) as string[]
     if (costos.length) parrafo.push({ t: ` Para el año ${fechaCierre(c.fecha).anio}, ${costos.join(' y ')}.` })
     return { fecha, fechaAlDerecha: true, cierre, parrafo }
+  }
+  if (tipo === 'conducta') {
+    // Formato «Constancia de conducta» del colegio. Si es de un año anterior (exalumnos), va en pasado
+    const pasado = !!c.anio && c.anio < fechaCierre(c.fecha).anio
+    const permanencia = pasado
+      ? `fue estudiante de nuestra institución en el año lectivo ${c.anio}, en el nivel ${c.grado} de ${c.nivel}, y durante su permanencia se observó `
+      : `estudiante de nuestra institución en el nivel ${c.grado} de ${c.nivel}, durante su permanencia se ha observado `
+    return {
+      fecha, fechaAlDerecha: true, cierre, titulo: 'CONSTANCIA DE CONDUCTA',
+      parrafo: [
+        { t: `Quien suscribe, la ${col.signerTitle.toLowerCase()} del ${col.institutionName}, hace constar por medio de la presente que el estudiante: ` },
+        { t: c.nombre, b: true },
+        { t: `, identificado con ${doc}, ${permanencia}` },
+        { t: c.conducta ? `${c.conducta.toUpperCase()} CONDUCTA.` : '[CONDUCTA POR DEFINIR].', b: true },
+      ],
+    }
   }
   if (tipo === 'promocion') {
     return { fecha, fechaAlDerecha: true, cierre, parrafo: [...inicio, { t: `fue promovido en esta institución para el año lectivo ${c.anio ?? ''} al nivel ${c.grado} de ${c.nivel}${horario}` }] }
@@ -266,6 +289,34 @@ export const notaMateria = (f: FilaNotas) => f.def ?? promedio(f.p)
 // Materias por debajo de la nota mínima: cada una va a habilitación
 export const materiasPerdidas = (filas: FilaNotas[], notaMinima: number) =>
   filas.filter(f => { const n = notaMateria(f); return n !== null && n < notaMinima })
+
+// ---------- Limpieza de lo que llega del navegador antes de generar el PDF ----------
+
+export const valorPesos = (v: unknown) => {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return isNaN(n) || n < 0 ? null : Math.round(n)
+}
+
+export function limpiarCampos(c: CamposCertificado): CamposCertificado {
+  const t = (v: unknown) => String(v ?? '').trim().slice(0, 200)
+  return {
+    fecha: /^\d{4}-\d{2}-\d{2}$/.test(c.fecha) ? c.fecha : hoyISO(),
+    nombre: t(c.nombre), tipoDocumento: t(c.tipoDocumento), numeroDocumento: t(c.numeroDocumento), ciudadDocumento: t(c.ciudadDocumento),
+    grado: t(c.grado), nivel: t(c.nivel), anio: c.anio ? Number(c.anio) || null : null,
+    matricula: valorPesos(c.matricula), pension: valorPesos(c.pension),
+    conducta: (CONDUCTAS as readonly string[]).includes(String(c.conducta)) ? c.conducta : null,
+  }
+}
+
+export function limpiarNotas(filas: FilaNotas[] | null) {
+  if (!filas) return null
+  const nota = (v: unknown) => { const n = Number(v); return v === null || v === '' || isNaN(n) ? null : Math.min(5, Math.max(0, n)) }
+  return ordenarNotas(filas.slice(0, 60).map(f => ({
+    area: String(f.area ?? '').slice(0, 120), subject: String(f.subject ?? '').slice(0, 120),
+    p: [nota(f.p?.[0]), nota(f.p?.[1]), nota(f.p?.[2])], def: null,
+  })).filter(f => f.subject.trim()))
+}
 
 // ---------- Habilitaciones ----------
 

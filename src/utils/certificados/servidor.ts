@@ -9,7 +9,7 @@ import { hoyISO } from 'app/utils/horario/comun'
 import { aplicarHabilitaciones, cargarHabilitaciones } from 'app/utils/habilitaciones/servidor'
 import {
   type CamposCertificado, type Colegio, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
-  MAX_COMPROBANTE_MB, TIPOS_COMPROBANTE, areaCertificado, formatoDeCurso, nivelDeGrado, ordenarNotas, plantillaNotas, promedio,
+  MAX_COMPROBANTE_MB, TIPOS_COMPROBANTE, areaCertificado, tieneAnio, formatoDeCurso, nivelDeGrado, ordenarNotas, plantillaNotas, promedio,
 } from './comun'
 
 export { getAdmin, obtenerSesion }
@@ -155,9 +155,10 @@ export async function camposIniciales(admin: SupabaseClient, est: Estudiante, ti
     ciudadDocumento: est.docCity,
     grado,
     nivel,
-    anio: tipo === 'estudio' ? null : anio,
+    anio: tieneAnio(tipo) ? anio : null,
     matricula: costos ? est.tuitionFee : null,
     pension: costos ? est.monthlyFee : null,
+    conducta: null,
   }
 }
 
@@ -365,7 +366,7 @@ export async function armarBorrador(admin: SupabaseClient, r: FilaSolicitud) {
     campos = {
       fecha: hoyISO(), nombre: r.student_name, tipoDocumento: r.doc_type ?? alumno?.doc_type ?? 'Tarjeta de Identidad',
       numeroDocumento: r.doc_number ?? alumno?.doc_number ?? '', ciudadDocumento: '', grado, nivel: nivelDeGrado(grado),
-      anio: r.type_code === 'estudio' ? null : r.cert_year,
+      anio: tieneAnio(r.type_code) ? r.cert_year : null, conducta: null,
     }
     formato = formatoDeCurso(alumno?.last_course ?? null, nivelDeGrado(grado))
   }

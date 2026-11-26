@@ -1,10 +1,9 @@
 'use server'
 
 import { verificarRol } from 'app/utils/supabase/auth-check'
-import { hoyISO } from 'app/utils/horario/comun'
 import {
   type CamposCertificado, type Colegio, type EstadoRevision, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
-  METODOS_PAGO, formatoDeCurso, ordenarNotas,
+  METODOS_PAGO, formatoDeCurso, limpiarCampos, limpiarNotas, valorPesos,
 } from 'app/utils/certificados/comun'
 import {
   type FilaSolicitud, type OrigenNotas, getAdmin, cargarColegio, cargarTipos, armarBorrador,
@@ -176,31 +175,6 @@ export async function obtenerSolicitud(id: number): Promise<{ exito: boolean, er
   return { exito: true, detalle }
 }
 
-function limpiarCampos(c: CamposCertificado): CamposCertificado {
-  const t = (v: unknown) => String(v ?? '').trim().slice(0, 200)
-  return {
-    fecha: /^\d{4}-\d{2}-\d{2}$/.test(c.fecha) ? c.fecha : hoyISO(),
-    nombre: t(c.nombre), tipoDocumento: t(c.tipoDocumento), numeroDocumento: t(c.numeroDocumento), ciudadDocumento: t(c.ciudadDocumento),
-    grado: t(c.grado), nivel: t(c.nivel), anio: c.anio ? Number(c.anio) || null : null,
-    matricula: valorPesos(c.matricula), pension: valorPesos(c.pension),
-  }
-}
-
-function valorPesos(v: unknown) {
-  if (v === null || v === undefined || v === '') return null
-  const n = Number(v)
-  return isNaN(n) || n < 0 ? null : Math.round(n)
-}
-
-function limpiarNotas(filas: FilaNotas[] | null) {
-  if (!filas) return null
-  const nota = (v: unknown) => { const n = Number(v); return v === null || v === '' || isNaN(n) ? null : Math.min(5, Math.max(0, n)) }
-  return ordenarNotas(filas.slice(0, 60).map(f => ({
-    area: String(f.area ?? '').slice(0, 120), subject: String(f.subject ?? '').slice(0, 120),
-    p: [nota(f.p?.[0]), nota(f.p?.[1]), nota(f.p?.[2])], def: null,
-  })).filter(f => f.subject.trim()))
-}
-
 export async function guardarDatosCertificado(id: number, campos: CamposCertificado, notas: FilaNotas[] | null) {
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
@@ -309,11 +283,12 @@ export async function generarYEnviar(id: number, datos: { campos: CamposCertific
 
   const admin = getAdmin()
   const { data: r } = await admin.from('certificate_requests')
-    .select('status, student_name, requester_name, payment_method, origin, review_status, deliver_email').eq('id', id).maybeSingle()
+    .select('status, type_code, student_name, requester_name, payment_method, origin, review_status, deliver_email').eq('id', id).maybeSingle()
   if (!r) return { exito: false, error: 'La solicitud no existe.' }
   if (r.status === 'sent') return { exito: false, error: 'Este certificado ya fue enviado.' }
   if (r.origin === 'portal' && r.review_status !== 'confirmed') return { exito: false, error: 'El acudiente aún no ha confirmado que los datos del borrador son correctos.' }
   if (!r.payment_method) return { exito: false, error: 'Primero confirma que el pago fue recibido.' }
+  if (r.type_code === 'conducta' && !limpiarCampos(datos.campos).conducta) return { exito: false, error: 'Selecciona la conducta del estudiante (Buena o Excelente).' }
   const porCorreo = r.deliver_email !== false
   if (porCorreo && !esCorreo(datos.correo)) return { exito: false, error: 'El correo de destino no es válido.' }
 

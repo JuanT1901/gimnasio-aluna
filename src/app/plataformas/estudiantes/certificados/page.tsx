@@ -7,7 +7,7 @@ import styles from 'app/styles/pages/Dashboard.module.scss'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
 import { OpcionesPago } from 'app/components/certificados/Componentes'
-import { type TipoCertificado, formatoPrecio } from 'app/utils/certificados/comun'
+import { type TipoCertificado, formatoPrecio, tieneAnio } from 'app/utils/certificados/comun'
 import { obtenerDatosSolicitud, crearSolicitud, type DatosSolicitud } from './actions'
 
 export default function SolicitarCertificadoPage() {
@@ -45,7 +45,7 @@ export default function SolicitarCertificadoPage() {
   const enviar = async () => {
     if (!tipo) return
     setEnviando(true)
-    const r = await crearSolicitud({ tipo, anio: tipo === 'estudio' ? null : anioElegido, solicitante, correo, comentario, porCorreo, impreso, incluirCostos })
+    const r = await crearSolicitud({ tipo, anio: tieneAnio(tipo) ? anioElegido : null, solicitante, correo, comentario, porCorreo, impreso, incluirCostos })
     setEnviando(false)
     if (!r.exito) { alert(r.error); return }
     router.push(`/plataformas/estudiantes/certificados/solicitados?nueva=${r.id}`)
@@ -82,7 +82,7 @@ export default function SolicitarCertificadoPage() {
               {datos.estudiante.curso && <><dt>Curso</dt><dd>{datos.estudiante.curso}{datos.estudiante.grado ? ` (${datos.estudiante.grado})` : ''}</dd></>}
             </dl>
 
-            {tipo !== 'estudio' && (
+            {tieneAnio(tipo) && (
               <label className={h.field}>
                 {tipo === 'notas' ? 'Año cursado' : 'Año lectivo'}
                 <select className={h.select} value={anioElegido} onChange={e => setAnio(Number(e.target.value))}>
@@ -97,6 +97,10 @@ export default function SolicitarCertificadoPage() {
                 <input type="checkbox" checked={incluirCostos} onChange={e => setIncluirCostos(e.target.checked)} />
                 Incluir en el certificado el valor de la matrícula y de la pensión mensual.
               </label>
+            )}
+
+            {tipo === 'conducta' && (
+              <span className={c.hint}>La rectora indica en el certificado la conducta del estudiante en el año que elijas. En el borrador podrás revisar los demás datos.</span>
             )}
 
             <div className={h.field}>
@@ -133,7 +137,7 @@ export default function SolicitarCertificadoPage() {
           <aside className={c.panel}>
             <h3>Resumen</h3>
             <dl className={c.kv}>
-              <dt>Certificado</dt><dd>{t.name}{tipo !== 'estudio' ? ` ${anioElegido}` : ''}</dd>
+              <dt>Certificado</dt><dd>{t.name}{tieneAnio(tipo) ? ` ${anioElegido}` : ''}</dd>
               <dt>Precio</dt><dd>{formatoPrecio(t.price)}</dd>
               <dt>Entrega</dt><dd>{[porCorreo && 'Correo', impreso && 'Impreso'].filter(Boolean).join(' e ') || '—'}</dd>
             </dl>

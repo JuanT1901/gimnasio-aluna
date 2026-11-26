@@ -3,21 +3,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { FaArrowLeft, FaEye, FaPaperPlane, FaPlus, FaSave, FaSpinner, FaTrash } from 'react-icons/fa'
+import { FaArrowLeft, FaEye, FaPaperPlane, FaSave, FaSpinner } from 'react-icons/fa'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
 import { EstadoPill, VistaCertificado } from 'app/components/certificados/Componentes'
+import { EditorCampos, EditorNotas } from 'app/components/certificados/Editores'
 import {
   type CamposCertificado, type FilaNotas, type FormatoNotas,
-  GRADOS_OFICIALES, METODOS_PAGO, MENSAJE_SOLICITAR_PAGO, NIVELES, REVISION_RECTORA, definitiva, nivelDeGrado,
+  GRADOS_OFICIALES, METODOS_PAGO, MENSAJE_SOLICITAR_PAGO, REVISION_RECTORA, tieneAnio,
 } from 'app/utils/certificados/comun'
 import {
   obtenerSolicitud, guardarDatosCertificado, vistaPreviaPdf, solicitarPago, confirmarPago, anularPago, generarYEnviar, reenviarCertificado,
   registrarExalumnoDeSolicitud, type DetalleSolicitud,
 } from '../actions'
 
-const DOCUMENTOS = ['Tarjeta de Identidad', 'Registro Civil', 'Cédula de Ciudadanía', 'Cédula de Extranjería', 'Pasaporte', 'NUIP']
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '')
 
 const ORIGEN_NOTAS: Record<string, string> = {
@@ -68,27 +68,6 @@ export default function DetalleCertificadoPage() {
   if (!d || !campos) return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={50} color="#3b82f6" /></div>
 
   const enviado = d.status === 'sent'
-  const cambiar = (k: keyof CamposCertificado, v: string) => {
-    const numerico = k === 'anio' || k === 'matricula' || k === 'pension'
-    const siguiente = { ...campos, [k]: numerico ? (v ? Number(v) : null) : v }
-    if (k === 'grado' && v) siguiente.nivel = nivelDeGrado(v) || campos.nivel
-    setCampos(siguiente)
-    setPdfUrl(null)
-  }
-  const cambiarNota = (i: number, k: 'area' | 'subject' | 0 | 1 | 2, v: string) => {
-    setNotas((notas ?? []).map((f, j) => {
-      if (j !== i) return f
-      if (typeof k === 'number') {
-        const p = [...f.p]
-        const n = parseFloat(v.replace(',', '.'))
-        p[k] = v === '' || isNaN(n) ? null : Math.min(5, Math.max(0, n))
-        return { ...f, p, def: definitiva(p) }
-      }
-      return { ...f, [k]: v }
-    }))
-    setPdfUrl(null)
-  }
-
   const ejecutar = async (accion: string, fn: () => Promise<{ exito: boolean, error?: string }>, ok: string, recargar = true) => {
     setOcupado(accion)
     const r = await fn()
@@ -117,8 +96,10 @@ export default function DetalleCertificadoPage() {
 
   const pagado = !!d.paymentMethod
   const datosConfirmados = !d.pideRevision || d.reviewStatus === 'confirmed'
-  const listoParaEnviar = pagado && datosConfirmados && (!d.porCorreo || !!correo.trim())
-  const faltante = !datosConfirmados
+  const faltaConducta = d.tipo === 'conducta' && !campos.conducta
+  const listoParaEnviar = pagado && datosConfirmados && !faltaConducta && (!d.porCorreo || !!correo.trim())
+  const faltante = faltaConducta ? 'Selecciona la conducta del estudiante (Buena o Excelente).'
+    : !datosConfirmados
     ? 'El acudiente debe confirmar en el borrador que los datos son correctos.'
     : !pagado ? 'Selecciona cómo pagó y marca la casilla de pago recibido.' : 'Escribe el correo de destino.'
   const marcarPago = (marcado: boolean) => (marcado
@@ -132,7 +113,7 @@ export default function DetalleCertificadoPage() {
       </Link>
       <header className={styles.header} style={{ marginBottom: '20px' }}>
         <div>
-          <h1>{d.tipoNombre}{campos.anio && d.tipo !== 'estudio' ? ` ${campos.anio}` : ''}</h1>
+          <h1>{d.tipoNombre}{campos.anio && tieneAnio(d.tipo) ? ` ${campos.anio}` : ''}</h1>
           <p>{d.code} · {d.studentName}{d.course ? ` · ${d.course}` : ''}</p>
         </div>
         <EstadoPill estado={d.status} para="rectora" pagado={pagado} />
@@ -162,32 +143,10 @@ export default function DetalleCertificadoPage() {
             <section className={c.panel}>
               <h3>Datos del certificado</h3>
               <p>El sistema los llenó con la información de la plataforma. Corrige lo que haga falta; la vista previa se actualiza sola.</p>
-              <div className={c.formGrid}>
-                <label className={`${h.field} ${c.full}`}>Nombre del estudiante<input className={h.input} value={campos.nombre} onChange={e => cambiar('nombre', e.target.value)} /></label>
-                <label className={h.field}>Tipo de documento<select className={h.select} value={campos.tipoDocumento} onChange={e => cambiar('tipoDocumento', e.target.value)}>
-                  {[...new Set([campos.tipoDocumento, ...DOCUMENTOS])].filter(Boolean).map(t => <option key={t}>{t}</option>)}</select></label>
-                <label className={h.field}>Número<input className={h.input} value={campos.numeroDocumento} onChange={e => cambiar('numeroDocumento', e.target.value)} /></label>
-                <label className={h.field}>Expedido en<input className={h.input} value={campos.ciudadDocumento} onChange={e => cambiar('ciudadDocumento', e.target.value)} placeholder="Ej: Zipaquirá" /></label>
-                <label className={h.field}>Fecha de expedición<input className={h.input} type="date" value={campos.fecha} onChange={e => cambiar('fecha', e.target.value)} /></label>
-                <label className={h.field}>Grado<select className={h.select} value={campos.grado} onChange={e => cambiar('grado', e.target.value)}>
-                  <option value="">— Selecciona —</option>{GRADOS_OFICIALES.map(g => <option key={g}>{g}</option>)}</select></label>
-                <label className={h.field}>Nivel<select className={h.select} value={campos.nivel} onChange={e => cambiar('nivel', e.target.value)}>
-                  <option value="">— Selecciona —</option>{[...new Set([campos.nivel, ...NIVELES])].filter(Boolean).map(n => <option key={n}>{n}</option>)}</select></label>
-                {d.tipo === 'estudio' && (
-                  <>
-                    <label className={h.field}>Matrícula (COP)<input className={h.input} type="number" min={0} step={1000} value={campos.matricula ?? ''} onChange={e => cambiar('matricula', e.target.value)} placeholder="Sin valor" /></label>
-                    <label className={h.field}>Pensión mensual (COP)<input className={h.input} type="number" min={0} step={1000} value={campos.pension ?? ''} onChange={e => cambiar('pension', e.target.value)} placeholder="Sin valor" /></label>
-                    <span className={`${c.hint} ${c.full}`}>{d.incluyeCostos ? 'El acudiente pidió incluir los costos; se llenan con los valores del curso en Configuración.' : 'El acudiente no pidió los costos.'} Si los dejas vacíos, no aparecen en el certificado.</span>
-                  </>
-                )}
-                {d.tipo !== 'estudio' && (
-                  <label className={h.field}>Año lectivo<input className={h.input} type="number" value={campos.anio ?? ''} onChange={e => cambiar('anio', e.target.value)} /></label>
-                )}
-                {d.tipo === 'notas' && (
-                  <label className={h.field}>Formato de notas<select className={h.select} value={formato} onChange={e => { setFormato(e.target.value as FormatoNotas); setPdfUrl(null) }}>
-                    <option value="preescolar">Preescolar</option><option value="primaria">Primaria</option><option value="secundaria">Secundaria</option></select></label>
-                )}
-              </div>
+              <EditorCampos tipo={d.tipo} campos={campos} onCampos={x => { setCampos(x); setPdfUrl(null) }}
+                formato={formato} onFormato={f => { setFormato(f); setPdfUrl(null) }}
+                avisoCostos={d.incluyeCostos ? 'El acudiente pidió incluir los costos; se llenan con los valores del curso en Configuración.' : 'El acudiente no pidió los costos.'} />
+              {d.tipo === 'conducta' && !campos.conducta && <span className={c.hint}>Selecciona la conducta y oprime «Guardar cambios» para que el acudiente la vea en el borrador.</span>}
             </section>
           )}
 
@@ -195,28 +154,7 @@ export default function DetalleCertificadoPage() {
             <section className={c.panel}>
               <h3>Notas</h3>
               {d.origenNotas && <p>{ORIGEN_NOTAS[d.origenNotas]}</p>}
-              <div className={c.tableWrap}>
-                <table className={c.notesGrid}>
-                  <thead><tr>{formato !== 'preescolar' && <th>Área</th>}<th>Asignatura</th><th>1P</th><th>2P</th><th>3P</th><th>DEF</th><th /></tr></thead>
-                  <tbody>
-                    {notas.map((f, i) => (
-                      <tr key={i}>
-                        {formato !== 'preescolar' && <td><input value={f.area} onChange={e => cambiarNota(i, 'area', e.target.value)} aria-label="Área" /></td>}
-                        <td><input value={f.subject} onChange={e => cambiarNota(i, 'subject', e.target.value)} aria-label="Asignatura" /></td>
-                        {[0, 1, 2].map(p => (
-                          <td key={p} className={c.num}><input inputMode="decimal" value={f.p[p] ?? ''} onChange={e => cambiarNota(i, p as 0 | 1 | 2, e.target.value)} aria-label={`Periodo ${p + 1}`} /></td>
-                        ))}
-                        <td className={c.def}>{typeof f.def === 'number' ? f.def.toFixed(1) : ''}</td>
-                        <td><button type="button" className={h.iconBtn} onClick={() => setNotas(notas.filter((_, j) => j !== i))} aria-label="Quitar fila"><FaTrash size={11} /></button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button type="button" className={`${h.btn} ${h.btnGhost} ${h.btnSm}`} style={{ alignSelf: 'flex-start' }}
-                onClick={() => setNotas([...notas, { area: notas[notas.length - 1]?.area ?? '', subject: '', p: [null, null, null], def: null }])}>
-                <FaPlus size={10} /> Agregar fila
-              </button>
+              <EditorNotas notas={notas} formato={formato} onNotas={n => { setNotas(n); setPdfUrl(null) }} />
             </section>
           )}
 

@@ -2,7 +2,7 @@
 
 import {
   type CamposCertificado, type Colegio, type EstadoRevision, type EstadoSolicitud, type FilaNotas, type FormatoNotas, type TipoCertificado, type TipoConfig,
-  enlaceWhatsapp,
+  enlaceWhatsapp, tieneAnio,
 } from 'app/utils/certificados/comun'
 import {
   type FilaSolicitud, getAdmin, obtenerSesion, cargarColegio, cargarTipos, cargarEstudiante, anioActivo, enlaceTemporal,
@@ -77,7 +77,7 @@ export async function crearSolicitud(datos: {
   if (!tipos.some(t => t.code === datos.tipo)) return { exito: false, error: 'Ese certificado no está disponible.' }
 
   let anio: number | null = null
-  if (datos.tipo !== 'estudio') {
+  if (tieneAnio(datos.tipo)) {
     anio = Number(datos.anio)
     if (!Number.isInteger(anio) || anio < 2000 || anio > activo) return { exito: false, error: 'Selecciona un año válido.' }
   }

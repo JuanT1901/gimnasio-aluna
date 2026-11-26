@@ -28,6 +28,7 @@ import {
   FaCalendarTimes,
   FaFileAlt,
   FaCog,
+  FaFlask,
   FaFlagCheckered,
   FaRedoAlt,
   FaClipboardList,
@@ -577,6 +578,21 @@ export default function AdminSidebar() {
               >
                 <FaCog /> Configuración
               </Link>
+              {/* Herramienta del desarrollador: el enlace (y la página) solo existen con npm run dev */}
+              {process.env.NODE_ENV === "development" && (
+                <Link
+                  href="/plataformas/admin/certificados/prueba"
+                  style={{
+                    ...linkStyle,
+                    color:
+                      pathname === "/plataformas/admin/certificados/prueba"
+                        ? "#38bdf8"
+                        : "#cbd5e1",
+                  }}
+                >
+                  <FaFlask /> Certificado de prueba
+                </Link>
+              )}
             </div>
           </div>
 

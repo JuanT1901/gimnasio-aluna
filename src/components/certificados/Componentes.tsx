@@ -63,7 +63,7 @@ const ICONOS = {
 const nota = (n: number | null) => (typeof n === 'number' ? n.toFixed(1) : '')
 
 // Vista previa del certificado con el formato del colegio (el PDF final se genera en el servidor con el mismo texto)
-export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo, verificacion, firmaUrl, borrador = false }: {
+export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo, verificacion, firmaUrl, borrador = false, prueba }: {
   tipo: TipoCertificado
   campos: CamposCertificado
   colegio: Colegio
@@ -73,8 +73,10 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
   verificacion: string | null
   firmaUrl: string | null
   borrador?: boolean // el que ve el acudiente: sin firma ni consecutivo
+  prueba?: { sello: boolean } // certificado de prueba (solo en desarrollo)
 }) {
   const texto = textoCertificado(tipo, campos, colegio, formato)
+  const parrafo = texto.parrafo.map((s, i) => (s.b ? <b key={i}>{s.t}</b> : <span key={i}>{s.t}</span>))
   const web = colegio.website.replace(/^https?:\/\//, '')
   const conArea = formato !== 'preescolar'
   const muchasFilas = (notas?.length ?? 0) > 18
@@ -93,6 +95,7 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className={c.marcaAgua} src="/marca-agua-certificados.jpg" alt="" />
         {borrador && <div className={c.sello} aria-hidden="true">BORRADOR</div>}
+        {prueba?.sello && <div className={c.sello} aria-hidden="true">PRUEBA</div>}
         <div className={c.inner}>
           <div className={c.pHead}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -104,7 +107,16 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
 
           <div className={`${c.pBody} ${tipo === 'notas' ? c.pBodyNotas : ''}`}>
             <div className={texto.fechaAlDerecha ? c.pDate : c.pDateLeft}>{texto.fecha}</div>
-            <p>{texto.parrafo.map((s, i) => (s.b ? <b key={i}>{s.t}</b> : <span key={i}>{s.t}</span>))}</p>
+            {tipo !== 'notas' ? (
+              // Igual que en el PDF: título, texto y cierre repartidos en el espacio hasta la firma
+              <div className={c.pContenido}>
+                <div>
+                  {texto.titulo && <div className={c.pTitle}>{texto.titulo}</div>}
+                  <p>{parrafo}</p>
+                </div>
+                {texto.cierre && <p>{texto.cierre}</p>}
+              </div>
+            ) : <p>{parrafo}</p>}
             {tipo === 'notas' && notas && (
               <table className={c.nTable}>
                 <thead><tr>{conArea && <th>ÁREA</th>}<th>ASIGNATURA</th><th className={c.n}>1P</th><th className={c.n}>2P</th><th className={c.n}>3P</th><th className={c.n}>DEF</th></tr></thead>
@@ -120,7 +132,6 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
                 </tbody>
               </table>
             )}
-            {texto.cierre && <p className={c.pClosing}>{texto.cierre}</p>}
           </div>
 
           <div className={c.pBottom}>
@@ -141,6 +152,7 @@ export function VistaCertificado({ tipo, campos, colegio, formato, notas, codigo
         </div>
         <div className={c.pMeta}>
           {borrador ? 'Borrador para revisar los datos. No tiene validez.'
+            : prueba ? 'Certificado de prueba · Sin validez · No tiene número ni código de verificación'
             : <>Certificado N.º {codigo}{verificacion ? ` · Código de verificación ${verificacion}` : ' · El código de verificación se crea al enviarlo'}</>}
         </div>
       </div>
