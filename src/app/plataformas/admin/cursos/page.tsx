@@ -73,7 +73,7 @@ export default function AdminCursosPage() {
         <p style={{ color: '#64748b' }}>Asigna qué profesor es el Director de Grupo (Titular) para cada curso.</p>
       </header>
 
-      <div className={styles.card} style={{ maxWidth: '900px', margin: '0 auto', overflow: 'hidden' }}>
+      <div className={styles.card} style={{ maxWidth: '900px', margin: '0 auto', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>

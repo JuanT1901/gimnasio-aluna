@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FaArrowLeft, FaCheckCircle, FaPaperPlane, FaSearch, FaSpinner } from 'react-icons/fa'
+import { FaArrowLeft, FaCheckCircle, FaPaperPlane, FaSearch, FaSpinner, FaTimes } from 'react-icons/fa'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
 import i from 'app/styles/pages/Inscripciones.module.scss'
 import FichaInscripcion from 'app/components/inscripciones/FichaInscripcion'
-import { TIPOS_DOCUMENTO, faltantesPrimeraVez, type DatosFicha } from 'app/utils/inscripciones/comun'
-import { buscarDocumento, enviarInscripcion, obtenerOpcionesFormulario, type OpcionesFormulario, type ResultadoBusqueda } from './actions'
+import { OpcionesPago } from 'app/components/certificados/Componentes'
+import { createClient } from 'app/utils/supabase/client'
+import {
+  BUCKET_INSCRIPCIONES, MAX_COMPROBANTE_INSCRIPCION_MB, TIPOS_COMPROBANTE_INSCRIPCION, TIPOS_DOCUMENTO, faltantesPrimeraVez, type DatosFicha,
+} from 'app/utils/inscripciones/comun'
+import { buscarDocumento, enviarInscripcion, obtenerOpcionesFormulario, prepararComprobante, type OpcionesFormulario, type ResultadoBusqueda } from './actions'
 
 type Paso = 'documento' | 'ficha' | 'listo'
 
@@ -23,6 +27,7 @@ export default function InscripcionPage() {
   const [ficha, setFicha] = useState<DatosFicha>({})
   const [acepta, setAcepta] = useState(false)
   const [sitio, setSitio] = useState('')
+  const [comprobante, setComprobante] = useState<File | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resultado, setResultado] = useState<{ code: string, completada: boolean, nuevos: number } | null>(null)
@@ -58,7 +63,16 @@ export default function InscripcionPage() {
     if (!acepta) { setError('Debes autorizar el tratamiento de los datos personales para continuar.'); return }
 
     setCargando(true)
-    const r = await enviarInscripcion({ tipoDocumento, documento, anio, gradeId, ficha, acepta, sitio })
+    // Primero se sube el comprobante (si lo adjuntaron) y luego se envía la solicitud con su ubicación
+    let ruta: string | null = null
+    if (comprobante) {
+      const prep = await prepararComprobante(comprobante.type, comprobante.size, sitio)
+      if (!prep.exito || !prep.path || !prep.token) { setCargando(false); setError(prep.error ?? 'No se pudo subir el comprobante.'); return }
+      const { error: e } = await createClient().storage.from(BUCKET_INSCRIPCIONES).uploadToSignedUrl(prep.path, prep.token, comprobante, { contentType: comprobante.type })
+      if (e) { setCargando(false); setError('No se pudo subir el comprobante. Intenta de nuevo o envía la solicitud sin él y súbelo después.'); return }
+      ruta = prep.path
+    }
+    const r = await enviarInscripcion({ tipoDocumento, documento, anio, gradeId, ficha, acepta, sitio, comprobante: ruta })
     setCargando(false)
     if (!r.exito) { setError(r.error ?? 'No se pudo enviar la solicitud.'); return }
     setResultado({ code: r.code!, completada: !!r.completada, nuevos: r.nuevos ?? 0 })
@@ -67,7 +81,7 @@ export default function InscripcionPage() {
   }
 
   const reiniciar = () => {
-    setPaso('documento'); setDocumento(''); setBusqueda(null); setFicha({}); setAcepta(false)
+    setPaso('documento'); setDocumento(''); setBusqueda(null); setFicha({}); setAcepta(false); setComprobante(null)
     setAnio(null); setGradeId(null); setResultado(null); setError(null)
   }
 
@@ -148,6 +162,37 @@ export default function InscripcionPage() {
           </section>
 
           <FichaInscripcion ficha={ficha} onCambiar={setFicha} llenos={llenos} />
+
+          <section className={c.panel}>
+            <h3>Pago de la inscripción</h3>
+            {existente?.conComprobante ? (
+              <div className={i.locked}><FaCheckCircle /> Ya enviaron el comprobante de pago</div>
+            ) : (
+              <>
+                <p>Si ya pagaste la inscripción, adjunta el comprobante (foto o PDF). Si aún no, puedes enviar la solicitud y subirlo después: entra de nuevo a este formulario con el documento del estudiante.</p>
+                {opciones?.pago && <OpcionesPago banco={opciones.pago.banco} efectivo={opciones.pago.efectivo} />}
+                <div className={c.upload}>
+                  {comprobante ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem' }}>
+                      <FaCheckCircle color="#16a34a" /> <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{comprobante.name}</span>
+                      <button type="button" className={h.iconBtn} onClick={() => setComprobante(null)} aria-label="Quitar comprobante"><FaTimes size={12} /></button>
+                    </div>
+                  ) : (
+                    <input type="file" accept={Object.keys(TIPOS_COMPROBANTE_INSCRIPCION).join(',')} onChange={e => {
+                      const f = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!f) return
+                      if (!TIPOS_COMPROBANTE_INSCRIPCION[f.type]) { setError('El comprobante debe ser una foto (JPG, PNG) o un PDF.'); return }
+                      if (f.size > MAX_COMPROBANTE_INSCRIPCION_MB * 1024 * 1024) { setError(`El comprobante no puede pasar de ${MAX_COMPROBANTE_INSCRIPCION_MB} MB.`); return }
+                      setError(null)
+                      setComprobante(f)
+                    }} />
+                  )}
+                  <span className={c.hint}>Foto o PDF de máximo {MAX_COMPROBANTE_INSCRIPCION_MB} MB.</span>
+                </div>
+              </>
+            )}
+          </section>
 
           <section className={c.panel}>
             <label className={c.honeypot} aria-hidden="true">Sitio web<input tabIndex={-1} autoComplete="off" value={sitio} onChange={e => setSitio(e.target.value)} /></label>

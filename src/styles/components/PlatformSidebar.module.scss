@@ -3,6 +3,9 @@ $mobile: 768px;
 .sidebar {
   width: 260px;
   height: 100vh;
+  height: 100dvh; // en el celular, el alto visible real (sin la barra del navegador)
+  overflow-y: auto; // si las opciones no caben, el menú se desplaza y el botón de cerrar sesión sigue alcanzable
+  overscroll-behavior: contain;
   position: fixed;
   left: 0;
   top: 0;

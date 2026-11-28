@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={poppins.variable}>
+    <html lang="es" className={poppins.variable}>
       <body className={`${poppins.variable}`}>
         <AutoLogout />
         <Navbar />

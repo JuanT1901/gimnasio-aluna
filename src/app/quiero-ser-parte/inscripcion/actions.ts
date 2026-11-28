@@ -1,33 +1,73 @@
 'use server'
 
-import { getAdmin, anioActivo, enviarCorreo, escaparHtml, variantesDocumento } from 'app/utils/certificados/servidor'
-import { CAMPOS, ESTADOS_ABIERTOS, faltantesPrimeraVez, nombreCompleto } from 'app/utils/inscripciones/comun'
+import { randomUUID } from 'crypto'
+import { getAdmin, anioActivo, cargarColegio, enviarCorreo, escaparHtml, variantesDocumento } from 'app/utils/certificados/servidor'
+import { GRADOS_OFICIALES } from 'app/utils/certificados/comun'
+import { normalizarTexto } from 'app/utils/horario/comun'
+import {
+  BUCKET_INSCRIPCIONES, CAMPOS, CARPETA_COMPROBANTES, ESTADOS_ABIERTOS, GRADO_MAXIMO_INSCRIPCION, MAX_COMPROBANTE_INSCRIPCION_MB,
+  TIPOS_COMPROBANTE_INSCRIPCION, faltantesPrimeraVez, nombreCompleto,
+} from 'app/utils/inscripciones/comun'
 import { aColumnas, claveDocumento, cursosConGrado, estaVacio, limpiarFicha, tipoDocumentoValido } from 'app/utils/inscripciones/servidor'
 
-export type OpcionesFormulario = { anios: number[], cursos: { id: number, officialGrade: string }[] }
+export type OpcionesFormulario = {
+  anios: number[]
+  cursos: { id: number, officialGrade: string }[]
+  pago?: { banco: string | null, efectivo: string | null }
+}
+
+// Posición del grado oficial (Pre-kínder = 0 … Undécimo = 13); -1 si no se reconoce
+const posicionGrado = (g: string) => GRADOS_OFICIALES.findIndex(x => normalizarTexto(x) === normalizarTexto(g))
+const HASTA = posicionGrado(GRADO_MAXIMO_INSCRIPCION)
 
 export async function obtenerOpcionesFormulario(): Promise<OpcionesFormulario> {
   const admin = getAdmin()
-  const [activo, cursos] = await Promise.all([anioActivo(admin), cursosConGrado(admin)])
+  const [activo, cursos, colegio] = await Promise.all([anioActivo(admin), cursosConGrado(admin), cargarColegio(admin)])
   return {
     anios: [activo, activo + 1],
-    cursos: cursos.filter(c => c.officialGrade).map(c => ({ id: c.id, officialGrade: c.officialGrade! })),
+    // Solo los grados que tienen cupo para estudiantes nuevos (hasta Quinto)
+    cursos: cursos
+      .filter(c => c.officialGrade && posicionGrado(c.officialGrade) >= 0 && posicionGrado(c.officialGrade) <= HASTA)
+      .map(c => ({ id: c.id, officialGrade: c.officialGrade! })),
+    pago: { banco: colegio.bankInfo, efectivo: colegio.cashInfo },
   }
+}
+
+// ---------- Comprobante de pago ----------
+// El archivo va directo del navegador al almacenamiento privado, con un permiso firmado (así no pasa por el
+// servidor, que tiene un límite de tamaño por petición). La rectora lo ve en la solicitud.
+export async function prepararComprobante(tipo: string, tamano: number, sitio: string) {
+  if (sitio) return { exito: false, error: 'No se pudo subir el comprobante.' }
+  const ext = TIPOS_COMPROBANTE_INSCRIPCION[tipo]
+  if (!ext) return { exito: false, error: 'El comprobante debe ser una foto (JPG, PNG) o un PDF.' }
+  if (!(tamano > 0) || tamano > MAX_COMPROBANTE_INSCRIPCION_MB * 1024 * 1024) return { exito: false, error: `El comprobante no puede pasar de ${MAX_COMPROBANTE_INSCRIPCION_MB} MB.` }
+  const path = `${CARPETA_COMPROBANTES}${randomUUID()}.${ext}`
+  const { data, error } = await getAdmin().storage.from(BUCKET_INSCRIPCIONES).createSignedUploadUrl(path)
+  if (error || !data) return { exito: false, error: 'No se pudo preparar la subida del comprobante. Intenta de nuevo.' }
+  return { exito: true, path, token: data.token }
+}
+
+// El comprobante debe ser uno que se subió con el permiso de arriba
+async function comprobanteValido(path: string | null | undefined) {
+  if (!path) return null
+  if (!path.startsWith(CARPETA_COMPROBANTES) || path.includes('..') || path.length > 120) return null
+  const nombre = path.slice(CARPETA_COMPROBANTES.length)
+  const { data } = await getAdmin().storage.from(BUCKET_INSCRIPCIONES).list(CARPETA_COMPROBANTES.slice(0, -1), { search: nombre, limit: 1 })
+  return data?.some(f => f.name === nombre) ? path : null
 }
 
 // Lo que se responde al buscar un documento. Nunca se devuelven los datos guardados: solo qué campos
 // ya están llenos, para que el otro acudiente complete lo que falta sin ver la información del primero.
 export type ResultadoBusqueda =
   | { estado: 'nueva' }
-  | { estado: 'existente', code: string, anio: number, llenos: string[], conCurso: boolean }
+  | { estado: 'existente', code: string, anio: number, llenos: string[], conCurso: boolean, conComprobante: boolean }
   | { estado: 'estudiante' }
 
-const COLUMNAS_FICHA = ['id', 'code', 'school_year', 'grade_id', 'family_submissions', ...CAMPOS.map(c => c.key)].join(', ')
-
 async function buscarAbierta(doc: string) {
+  // Con «*» funciona aunque aún no existan las columnas del comprobante (supabase/inscripciones_comprobante.sql)
   const { data } = await getAdmin()
     .from('enrollment_requests')
-    .select(COLUMNAS_FICHA)
+    .select('*')
     .eq('doc_key', claveDocumento(doc))
     .in('status', ESTADOS_ABIERTOS)
     .maybeSingle()
@@ -62,13 +102,14 @@ export async function buscarDocumento(documento: string): Promise<{ exito: boole
       anio: Number(abierta.school_year),
       llenos: CAMPOS.filter(c => !estaVacio(abierta[c.key])).map(c => c.key),
       conCurso: !!abierta.grade_id,
+      conComprobante: !!abierta.payment_proof_path,
     },
   }
 }
 
 export async function enviarInscripcion(d: {
   tipoDocumento: string, documento: string, anio: number | null, gradeId: number | null,
-  ficha: Record<string, string>, acepta: boolean, sitio: string,
+  ficha: Record<string, string>, acepta: boolean, sitio: string, comprobante?: string | null,
 }): Promise<{ exito: boolean, error?: string, code?: string, completada?: boolean, nuevos?: number }> {
   // «sitio» es un campo oculto: si viene lleno, lo llenó un robot
   if (d.sitio) return { exito: false, error: 'No se pudo enviar la solicitud.' }
@@ -87,6 +128,9 @@ export async function enviarInscripcion(d: {
   const opciones = await obtenerOpcionesFormulario()
   const gradeValido = d.gradeId !== null && opciones.cursos.some(c => c.id === d.gradeId)
   const abierta = await buscarAbierta(doc)
+  const comprobante = await comprobanteValido(d.comprobante)
+  if (d.comprobante && !comprobante) return { exito: false, error: 'No se pudo recibir el comprobante. Vuelve a adjuntarlo.' }
+  const pago = comprobante ? { payment_proof_path: comprobante, payment_proof_at: new Date().toISOString() } : {}
 
   // El otro acudiente completa la solicitud que ya existe: solo se llenan los campos que estaban vacíos
   if (abierta) {
@@ -96,8 +140,10 @@ export async function enviarInscripcion(d: {
       if (estaVacio(abierta[c.key]) && columnas[c.key] !== null) cambios[c.key] = columnas[c.key]
     }
     if (!abierta.grade_id && gradeValido) cambios.grade_id = d.gradeId
+    // El comprobante se puede subir después: volviendo a entrar con el documento del estudiante
+    if (comprobante && !abierta.payment_proof_path) Object.assign(cambios, pago)
 
-    const nuevos = Object.keys(cambios).length
+    const nuevos = Object.keys(cambios).filter(k => k !== 'payment_proof_at').length
     if (nuevos) {
       const ahora = new Date().toISOString()
       const { error: errUpd } = await admin.from('enrollment_requests').update({
@@ -122,6 +168,7 @@ export async function enviarInscripcion(d: {
     ...aColumnas(datos),
     school_year: d.anio,
     grade_id: d.gradeId,
+    ...pago,
     doc_type: d.tipoDocumento,
     doc_number: doc,
     doc_key: claveDocumento(doc),
@@ -151,7 +198,7 @@ async function enviarConfirmacion(code: string, estudiante: string, datos: Recor
       <p>Estudiante: <b>${escaparHtml(estudiante || 'Sin nombre')}</b><br>Número de solicitud: <b>${escaparHtml(code)}</b></p>
       <p>Siguientes pasos del proceso de admisión:</p>
       <ol>
-        <li>Pago de la inscripción y entrega del comprobante (el colegio te indicará cómo hacerlo).</li>
+        <li>Pago de la inscripción y comprobante: si no lo adjuntaste, entra de nuevo al formulario con el documento del estudiante y súbelo.</li>
         <li>Evaluación y entrevista con la familia.</li>
         <li>Comunicación oficial sobre la asignación del cupo y matrícula.</li>
       </ol>

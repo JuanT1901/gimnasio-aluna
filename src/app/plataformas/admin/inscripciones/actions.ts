@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { verificarRol } from 'app/utils/supabase/auth-check'
 import { getAdmin, anioActivo, variantesDocumento } from 'app/utils/certificados/servidor'
 import {
-  CAMPOS, DOMINIO_USUARIOS, ESTADOS_ABIERTOS, type DatosFicha, type EstadoInscripcion,
+  BUCKET_INSCRIPCIONES, CAMPOS, DOMINIO_USUARIOS, ESTADOS_ABIERTOS, METODOS_PAGO_INSCRIPCION, type DatosFicha, type EstadoInscripcion,
   limpiarUsuario, nombreCompleto, usuarioSugerido,
 } from 'app/utils/inscripciones/comun'
 import { aColumnas, aFicha, claveDocumento, cursosConGrado, limpiarFicha, tipoDocumentoValido } from 'app/utils/inscripciones/servidor'
@@ -19,6 +19,7 @@ export async function contarInscripcionesNuevas() {
 export type ResumenInscripcion = {
   id: number, code: string, schoolYear: number, status: EstadoInscripcion, estudiante: string,
   curso: string | null, grado: string | null, familia: string, nueva: boolean, completadaPorOtro: boolean, createdAt: string,
+  pago: 'confirmado' | 'comprobante' | null, // pago confirmado por la rectora, o comprobante enviado sin revisar
 }
 
 export async function obtenerInscripciones(): Promise<{ exito: boolean, error?: string, inscripciones?: ResumenInscripcion[] }> {
@@ -27,9 +28,8 @@ export async function obtenerInscripciones(): Promise<{ exito: boolean, error?: 
 
   const admin = getAdmin()
   const [{ data, error }, cursos] = await Promise.all([
-    admin.from('enrollment_requests')
-      .select('id, code, school_year, status, first_name, second_name, first_surname, second_surname, grade_id, mother_name, father_name, family_submissions, admin_seen_at, created_at')
-      .order('created_at', { ascending: false }),
+    // Con «*» funciona aunque aún no existan las columnas del pago (supabase/inscripciones_comprobante.sql)
+    admin.from('enrollment_requests').select('*').order('created_at', { ascending: false }),
     cursosConGrado(admin),
   ])
   if (error) return { exito: false, error: error.message }
@@ -44,6 +44,7 @@ export async function obtenerInscripciones(): Promise<{ exito: boolean, error?: 
       grado: r.grade_id ? porId.get(r.grade_id)?.officialGrade ?? null : null,
       familia: [r.mother_name, r.father_name].filter(Boolean).join(' · '),
       nueva: !r.admin_seen_at, completadaPorOtro: (r.family_submissions ?? 1) > 1, createdAt: r.created_at,
+      pago: r.payment_confirmed_at ? 'confirmado' : r.payment_proof_path ? 'comprobante' : null,
     })),
   }
 }
@@ -54,6 +55,11 @@ export type DetalleInscripcion = {
   completadaPorOtro: boolean, familyUpdatedAt: string, createdAt: string, enrolledAt: string | null,
   anioActivo: number, cursos: { id: number, name: string, officialGrade: string | null }[],
   perfilExistente: string | null, // nombre de quien ya tiene ese documento en la plataforma
+  pago: {
+    disponible: boolean // false = aún no se corrió supabase/inscripciones_comprobante.sql
+    comprobanteUrl: string | null, comprobanteEsPdf: boolean, comprobanteAt: string | null
+    metodo: string | null, confirmadoAt: string | null
+  }
 }
 
 export async function obtenerInscripcion(id: number): Promise<{ exito: boolean, error?: string, detalle?: DetalleInscripcion }> {
@@ -64,8 +70,9 @@ export async function obtenerInscripcion(id: number): Promise<{ exito: boolean, 
   const { data: r } = await admin.from('enrollment_requests').select('*').eq('id', id).maybeSingle()
   if (!r) return { exito: false, error: 'Solicitud no encontrada.' }
 
-  const [cursos, activo, perfil] = await Promise.all([
+  const [cursos, activo, perfil, firmado] = await Promise.all([
     cursosConGrado(admin), anioActivo(admin), perfilConDocumento(admin, r.doc_number, r.profile_id),
+    r.payment_proof_path ? admin.storage.from(BUCKET_INSCRIPCIONES).createSignedUrl(r.payment_proof_path, 600) : Promise.resolve({ data: null }),
   ])
   if (!r.admin_seen_at) await admin.from('enrollment_requests').update({ admin_seen_at: new Date().toISOString() }).eq('id', id)
 
@@ -77,6 +84,11 @@ export async function obtenerInscripcion(id: number): Promise<{ exito: boolean, 
       username: r.username || usuarioSugerido(r),
       completadaPorOtro: (r.family_submissions ?? 1) > 1, familyUpdatedAt: r.family_updated_at, createdAt: r.created_at,
       enrolledAt: r.enrolled_at ?? null, anioActivo: activo, cursos, perfilExistente: perfil,
+      pago: {
+        disponible: 'payment_confirmed_at' in r,
+        comprobanteUrl: firmado.data?.signedUrl ?? null, comprobanteEsPdf: String(r.payment_proof_path ?? '').endsWith('.pdf'),
+        comprobanteAt: r.payment_proof_at ?? null, metodo: r.payment_method ?? null, confirmadoAt: r.payment_confirmed_at ?? null,
+      },
     },
   }
 }
@@ -142,6 +154,28 @@ export async function cambiarEstadoInscripcion(id: number, estado: EstadoInscrip
   return { exito: true }
 }
 
+// ---------- Pago de la inscripción ----------
+// La rectora revisa el comprobante (o recibe el pago en efectivo) y lo confirma; sin eso no se puede inscribir.
+
+export async function confirmarPagoInscripcion(id: number, metodo: string) {
+  const { autorizado, error: authError, userId } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+  if (!(METODOS_PAGO_INSCRIPCION as readonly string[]).includes(metodo)) return { exito: false, error: 'Selecciona cómo pagó.' }
+  const { error } = await getAdmin().from('enrollment_requests').update({
+    payment_method: metodo, payment_confirmed_at: new Date().toISOString(), payment_confirmed_by: userId ?? null, updated_at: new Date().toISOString(),
+  }).eq('id', id).neq('status', 'enrolled')
+  return error ? { exito: false, error: error.message } : { exito: true }
+}
+
+export async function anularPagoInscripcion(id: number) {
+  const { autorizado, error: authError } = await verificarRol('admin')
+  if (!autorizado) return { exito: false, error: authError }
+  const { error } = await getAdmin().from('enrollment_requests').update({
+    payment_method: null, payment_confirmed_at: null, payment_confirmed_by: null, updated_at: new Date().toISOString(),
+  }).eq('id', id).neq('status', 'enrolled')
+  return error ? { exito: false, error: error.message } : { exito: true }
+}
+
 // ---------- Usuario de acceso ----------
 
 async function correosRegistrados(admin: SupabaseClient) {
@@ -203,6 +237,8 @@ export async function inscribirEstudiante(id: number, usuario: string): Promise<
   }
 
   if (!r.grade_id) return { exito: false, error: 'Asigna el curso antes de inscribir.' }
+  // (Si aún no se corrió el script del comprobante, la columna no existe y no se exige)
+  if ('payment_confirmed_at' in r && !r.payment_confirmed_at) return { exito: false, error: 'Primero confirma que el pago de la inscripción fue recibido.' }
   if (!r.first_name || !r.first_surname) return { exito: false, error: 'Falta el primer nombre o el primer apellido.' }
   const password = String(r.doc_number).trim()
   if (password.length < 6) return { exito: false, error: 'La contraseña inicial es el número de documento y debe tener al menos 6 caracteres. Revisa el documento.' }

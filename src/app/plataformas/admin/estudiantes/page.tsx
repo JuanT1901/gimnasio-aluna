@@ -270,7 +270,7 @@ export default function EstudiantesPage() {
       </div>
 
       {avisoRetiro && (
-        <div style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: '#1e293b', color: 'white', padding: '12px 18px', borderRadius: '8px', zIndex: 1100 }}>{avisoRetiro}</div>
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', maxWidth: 'calc(100vw - 40px)', backgroundColor: '#1e293b', color: 'white', padding: '12px 18px', borderRadius: '8px', zIndex: 1100 }}>{avisoRetiro}</div>
       )}
 
       {retirando && (
@@ -443,7 +443,7 @@ export default function EstudiantesPage() {
       )}
 
       {mensajeExito && (
-        <div style={{ position: 'fixed', bottom: '30px', right: '30px', backgroundColor: '#10b981', color: 'white', padding: '15px 25px', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 9999, fontWeight: 'bold' }}>
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', maxWidth: 'calc(100vw - 40px)', backgroundColor: '#10b981', color: 'white', padding: '15px 25px', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 9999, fontWeight: 'bold' }}>
           <FaCheckCircle size={24} /> Ficha del estudiante actualizada con éxito
         </div>
       )}

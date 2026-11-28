@@ -353,7 +353,7 @@ export default function AdminProfesoresPage() {
           </header>
 
           <div style={{ display: 'flex', gap: '20px', maxWidth: '1000px', margin: '0 auto', flexWrap: 'wrap' }}>
-            <div className={styles.card} style={{ flex: '2', minWidth: '300px' }}>
+            <div className={styles.card} style={{ flex: '2', minWidth: 'min(300px, 100%)' }}>
               <h3 style={{ marginTop: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>Carga Académica Actual</h3>
               {cargando ? (
                 <div style={{ textAlign: 'center', padding: '20px' }}><FaSpinner className="fa-spin" color="#3b82f6" /></div>
@@ -380,7 +380,7 @@ export default function AdminProfesoresPage() {
               )}
             </div>
 
-            <div className={styles.card} style={{ flex: '1', minWidth: '300px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            <div className={styles.card} style={{ flex: '1', minWidth: 'min(300px, 100%)', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
               <h3 style={{ marginTop: 0, color: '#166534' }}>Asignar Nueva Clase</h3>
               
               <div style={{ marginBottom: '15px' }}>
@@ -520,8 +520,8 @@ export default function AdminProfesoresPage() {
                 <input type="text" value={emailAuth || 'Cargando...'} disabled style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #fca5a5', backgroundColor: '#f1f5f9', color: '#64748b' }} />
               </div>
 
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', marginBottom: '25px' }}>
-                <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', marginBottom: '25px', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#991b1b', fontSize: '0.9rem' }}>Nuevo correo de acceso:</label>
                   <input
                     type="text"
@@ -542,13 +542,13 @@ export default function AdminProfesoresPage() {
 
               <div style={{ borderTop: '1px solid #fca5a5', paddingTop: '20px' }}>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#991b1b', fontSize: '0.9rem' }}>Restablecer contraseña:</label>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <input
                     type="text"
                     placeholder="Escriba la nueva contraseña (mín. 8 caracteres)..."
                     value={nuevaContrasena}
                     onChange={(e) => setNuevaContrasena(e.target.value)}
-                    style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #fca5a5', fontWeight: 'bold' }}
+                    style={{ flex: '1 1 220px', minWidth: 0, padding: '12px', borderRadius: '6px', border: '1px solid #fca5a5', fontWeight: 'bold' }}
                   />
                   <button
                     onClick={ejecutarCambioClave}

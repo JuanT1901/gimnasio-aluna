@@ -141,7 +141,7 @@ export default function MisDatosPage() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', maxWidth: '900px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: '30px', maxWidth: '900px' }}>
 
         {/* Datos personales */}
         <div className={styles.card} style={{ padding: '30px' }}>

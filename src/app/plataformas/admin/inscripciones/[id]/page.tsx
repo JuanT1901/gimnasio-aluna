@@ -10,9 +10,10 @@ import c from 'app/styles/pages/Certificados.module.scss'
 import i from 'app/styles/pages/Inscripciones.module.scss'
 import FichaInscripcion from 'app/components/inscripciones/FichaInscripcion'
 import EstadoInscripcionPill from 'app/components/inscripciones/EstadoInscripcionPill'
-import { DOMINIO_USUARIOS, TIPOS_DOCUMENTO, nombreCompleto, usuarioSugerido, limpiarUsuario, type EstadoInscripcion } from 'app/utils/inscripciones/comun'
+import { DOMINIO_USUARIOS, METODOS_PAGO_INSCRIPCION, TIPOS_DOCUMENTO, nombreCompleto, usuarioSugerido, limpiarUsuario, type EstadoInscripcion } from 'app/utils/inscripciones/comun'
 import {
   obtenerInscripcion, guardarInscripcion, cambiarEstadoInscripcion, verificarUsuario, inscribirEstudiante,
+  confirmarPagoInscripcion, anularPagoInscripcion,
   type DetalleInscripcion, type CambiosInscripcion,
 } from '../actions'
 
@@ -27,6 +28,7 @@ export default function DetalleInscripcionPage() {
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [revision, setRevision] = useState<{ usuario: string, disponible: boolean, sugerencia: string | null } | null>(null)
+  const [metodo, setMetodo] = useState('')
 
   const cargar = useCallback(async () => {
     const r = await obtenerInscripcion(idNum)
@@ -35,6 +37,7 @@ export default function DetalleInscripcionPage() {
     setDetalle(d)
     setForm({ ficha: d.ficha, schoolYear: d.schoolYear, gradeId: d.gradeId, docType: d.docType, docNumber: d.docNumber, adminNotes: d.adminNotes, username: d.username })
     setRevision(null)
+    setMetodo(d.pago.metodo ?? (d.pago.comprobanteUrl ? 'Transferencia' : ''))
   }, [idNum])
 
   useEffect(() => { cargar() }, [cargar])
@@ -103,6 +106,19 @@ export default function DetalleInscripcionPage() {
     await cargar()
     setMensaje(`${nombreCompleto(form.ficha)} quedó inscrito(a) con el usuario «${r.usuario}».`)
   }
+
+  // La casilla de pago se guarda de inmediato
+  const marcarPago = async (marcado: boolean) => {
+    setError(null)
+    setOcupado('pago')
+    const r = marcado ? await confirmarPagoInscripcion(idNum, metodo) : await anularPagoInscripcion(idNum)
+    setOcupado(null)
+    if (!r.exito) { setError(r.error ?? 'No se pudo registrar el pago.'); return }
+    setMensaje(marcado ? `Pago registrado (${metodo}).` : 'Se quitó la confirmación del pago.')
+    await cargar()
+  }
+  const pagado = !!detalle.pago.confirmadoAt
+  const exigePago = detalle.pago.disponible && !pagado
 
   const cambiarFicha = (ficha: CambiosInscripcion['ficha']) => {
     // Mientras la rectora no haya cambiado el usuario a mano, sigue la regla con los nombres nuevos
@@ -173,6 +189,39 @@ export default function DetalleInscripcionPage() {
             <textarea className={h.input} rows={4} maxLength={2000} value={form.adminNotes} onChange={e => setForm({ ...form, adminNotes: e.target.value })} style={{ resize: 'vertical' }} />
           </section>
 
+          {detalle.pago.disponible && (
+            <section className={c.panel}>
+              <h3>Pago de la inscripción</h3>
+              {detalle.pago.comprobanteUrl ? (
+                <div className={c.receipt}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {detalle.pago.comprobanteEsPdf ? <p style={{ padding: '16px', margin: 0 }}>El comprobante es un PDF.</p> : <img src={detalle.pago.comprobanteUrl} alt="Comprobante de pago" />}
+                  <div className={c.receiptCap}>
+                    <span>Enviado{detalle.pago.comprobanteAt ? ` el ${fecha(detalle.pago.comprobanteAt)}` : ''}</span>
+                    <a href={detalle.pago.comprobanteUrl} target="_blank" rel="noopener noreferrer">Ver completo</a>
+                  </div>
+                </div>
+              ) : (
+                <p>{pagado ? 'El pago se registró sin comprobante.' : 'La familia aún no ha enviado el comprobante. Lo puede subir entrando de nuevo al formulario con el documento del estudiante. Si pagó en efectivo, confírmalo aquí.'}</p>
+              )}
+              <div className={h.field}>
+                ¿Cómo pagó?
+                <div className={c.radioRow}>
+                  {METODOS_PAGO_INSCRIPCION.map(m => (
+                    <label key={m} className={metodo === m ? c.radioOn : ''}>
+                      <input type="radio" name="metodo" checked={metodo === m} disabled={pagado} onChange={() => setMetodo(m)} /> {m}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label className={c.check}>
+                {ocupado === 'pago' ? <FaSpinner className="fa-spin" /> : <input type="checkbox" checked={pagado} disabled={!metodo || !!ocupado} onChange={e => marcarPago(e.target.checked)} />}
+                Confirmo que el pago de la inscripción fue recibido.
+              </label>
+              {pagado && <span className={c.hint}>Confirmado el {fecha(detalle.pago.confirmadoAt!)} ({detalle.pago.metodo}).</span>}
+            </section>
+          )}
+
           {abierta && (
             <section className={c.panel}>
               <h3>Inscribir</h3>
@@ -205,8 +254,9 @@ export default function DetalleInscripcionPage() {
                   El año activo es {detalle.anioActivo}. Podrás inscribir después del paso de año (Fin de año); si se inscribiera ahora, el paso de año lo movería al curso siguiente. Mientras tanto, déjala «En proceso».
                 </div>
               )}
+              {exigePago && <span className={c.hint}>Para inscribir, primero confirma el pago de la inscripción.</span>}
               <div>
-                <button type="button" className={`${h.btn} ${h.btnGreen}`} disabled={!!ocupado || anioFuturo || !curso || !!detalle.perfilExistente} onClick={inscribir}>
+                <button type="button" className={`${h.btn} ${h.btnGreen}`} disabled={!!ocupado || anioFuturo || !curso || !!detalle.perfilExistente || exigePago} onClick={inscribir}>
                   {ocupado === 'inscribir' ? <FaSpinner className="fa-spin" /> : <FaUserCheck />} Inscribir
                 </button>
               </div>

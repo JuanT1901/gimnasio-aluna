@@ -324,6 +324,9 @@ $mobile: 768px;
   border-radius: 12px;
   padding: 20px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  @media (max-width: $mobile) { padding: 10px; }
 }
 
 .paper {
@@ -417,7 +420,7 @@ $mobile: 768px;
 }
 
 .rowReview td { background: #fffbeb; }
-.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .tile {

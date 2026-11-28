@@ -83,8 +83,12 @@ export default function InscripcionesPage() {
                 <div className={c.rMeta}>
                   {s.grado ? `${s.grado}${s.curso ? ` (${s.curso})` : ''}` : 'Sin grado'} · Año {s.schoolYear}{s.familia ? ` · ${s.familia}` : ''}
                 </div>
-                {s.completadaPorOtro && (
-                  <div className={c.rTags}><span className={`${h.pill} ${h.pillNone}`}>Completada por otro acudiente</span></div>
+                {(s.completadaPorOtro || s.pago) && (
+                  <div className={c.rTags}>
+                    {s.pago === 'confirmado' && <span className={`${h.pill} ${h.pillPublished}`}>Pago confirmado</span>}
+                    {s.pago === 'comprobante' && <span className={`${h.pill} ${c.pillReview}`}>Comprobante por revisar</span>}
+                    {s.completadaPorOtro && <span className={`${h.pill} ${h.pillNone}`}>Completada por otro acudiente</span>}
+                  </div>
                 )}
               </div>
               <div className={c.rSide}>

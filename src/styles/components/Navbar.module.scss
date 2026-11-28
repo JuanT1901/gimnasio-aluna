@@ -1,3 +1,7 @@
+// Desde este ancho las opciones caben en una fila; por debajo se usa el menú de hamburguesa
+// (con 6 opciones y el logo, la fila necesita ~1200 px)
+$menu-horizontal: 1200px;
+
 .navbar {
   background-color: #3CA0E8;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -38,7 +42,7 @@
     filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.8));
     padding-right: 10px;
 
-    @media (min-width: 768px) {
+    @media (min-width: $menu-horizontal) {
       display: none;
     }
   }
@@ -74,7 +78,11 @@
 
   &.active {
     display: flex;
-    max-height: 600px;
+    // Que quepan todas las opciones: si no alcanzan en la pantalla, el menú se desplaza
+    max-height: calc(100vh - 80px);
+    max-height: calc(100dvh - 80px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     opacity: 1;
     transform: translateY(0);
     box-shadow: 0 8px 8px rgba(0, 0, 0, 0.2);
@@ -131,7 +139,7 @@
     }
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: $menu-horizontal) {
     display: flex;
     flex-direction: row;
     position: static;

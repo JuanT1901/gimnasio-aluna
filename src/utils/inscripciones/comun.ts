@@ -134,3 +134,16 @@ export function usuarioSugerido(d: { first_name?: string | null, second_name?: s
 export const limpiarUsuario = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9.]/g, '')
 
 export const DOMINIO_USUARIOS = '@aluna.edu.co'
+
+// ---------- Grados que se ofrecen en el formulario ----------
+// Desde 2026-11 el colegio solo recibe estudiantes nuevos hasta Quinto (se cerraron los cursos de Sexto en adelante)
+export const GRADO_MAXIMO_INSCRIPCION = 'Quinto'
+
+// ---------- Comprobante de pago de la inscripción ----------
+export const BUCKET_INSCRIPCIONES = 'inscripciones'
+export const CARPETA_COMPROBANTES = 'comprobantes/'
+export const MAX_COMPROBANTE_INSCRIPCION_MB = 5
+export const TIPOS_COMPROBANTE_INSCRIPCION: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf',
+}
+export const METODOS_PAGO_INSCRIPCION = ['Transferencia', 'Efectivo'] as const
