@@ -6,7 +6,7 @@ import styles from 'app/styles/pages/Dashboard.module.scss'
 import h from 'app/styles/pages/Horario.module.scss'
 import c from 'app/styles/pages/Certificados.module.scss'
 import { GRADOS_OFICIALES } from 'app/utils/certificados/comun'
-import { obtenerExalumnos, guardarExalumno, type Exalumno } from '../actions'
+import { obtenerExalumnos, guardarExalumno, type Exalumno } from 'app/app/plataformas/admin/certificados/actions'
 
 const VACIO = { fullName: '', docType: 'Tarjeta de Identidad', docNumber: '', birthDate: '', lastGrade: '', exitYear: '', reason: 'Terminó sus estudios' }
 

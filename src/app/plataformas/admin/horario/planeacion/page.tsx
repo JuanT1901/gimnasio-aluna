@@ -57,7 +57,12 @@ export default function PlaneacionSemanalAdminPage() {
   if (!semana) return <div style={{ textAlign: 'center', marginTop: '100px' }}><FaSpinner className="fa-spin" size={50} color="#3b82f6" /></div>
 
   const fechas = fechasDeSemana(semana)
-  const diaLibre = (fecha: string) => dias.filter(d => fecha >= d.startDate && fecha <= d.endDate)
+  // Días sin clase de esa fecha; con un curso elegido, solo los que le aplican
+  const diaLibre = (fecha: string) => dias.filter(d =>
+    d.noClass && fecha >= d.startDate && fecha <= d.endDate && (!cursoId || !d.gradeIds || d.gradeIds.includes(cursoId)))
+  const aQuien = (d: DiaSinClase) => d.gradeIds?.length
+    ? d.gradeIds.map(id => cursos.find(c => c.id === id)?.name).filter(Boolean).join(', ') || 'Algunos cursos'
+    : NOMBRE_ALCANCE[d.scope]
 
   return (
     <main className={styles.mainContent}>
@@ -108,8 +113,8 @@ export default function PlaneacionSemanalAdminPage() {
                     <div key={d.id} className={`${h.rv} ${h.rvOff}`}>
                       <div className={h.rvWhen}>Sin clase</div>
                       <div className={h.rvWhat}>
-                        <div className={h.rvTitle}>{d.reason} <span className={`${h.pill} ${h.pillOff}`}>{NOMBRE_ALCANCE[d.scope]}</span></div>
-                        <p>No se pide planeación para {d.scope === 'all' ? 'este día' : `${NOMBRE_ALCANCE[d.scope].toLowerCase()} este día`}.</p>
+                        <div className={h.rvTitle}>{d.reason} <span className={`${h.pill} ${h.pillOff}`}>{aQuien(d)}</span></div>
+                        <p>No se pide planeación para {d.scope === 'all' && !d.gradeIds ? 'este día' : `${aQuien(d)} este día`}.</p>
                       </div>
                     </div>
                   ))}

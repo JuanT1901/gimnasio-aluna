@@ -71,7 +71,7 @@ export default function FinDeAnioPage() {
             Las notas de {hecho.anioNuevo - 1} quedaron guardadas en el historial para los certificados, y las planillas quedaron vacías para el año nuevo.
           </div>
           <div className={h.toolbar}>
-            <Link href="/plataformas/admin/certificados/exalumnos" className={`${h.btn} ${h.btnGhost}`}>Ver exalumnos</Link>
+            <Link href="/plataformas/admin/estudiantes/exalumnos" className={`${h.btn} ${h.btnGhost}`}>Ver exalumnos</Link>
             <button type="button" className={`${h.btn} ${h.btnWarn}`} disabled={ocupado} onClick={() => deshacer(hecho.anioNuevo - 1)}><FaUndo size={11} /> Deshacer paso de año</button>
           </div>
           <p className={c.hint}>Se puede deshacer mientras no se hayan registrado notas del año nuevo.</p>

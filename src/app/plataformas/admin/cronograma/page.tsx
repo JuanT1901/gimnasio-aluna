@@ -55,7 +55,7 @@ export default function CronogramaAdminPage() {
   const guardarActividad = async () => {
     const d: DatosActividad = {
       tipo: form.tipo, startDate: form.startDate, endDate: form.endDate || form.startDate, titulo: form.titulo,
-      gradeIds: form.tipo === 'extracurricular' && !form.todos ? form.gradeIds : null, sinClases: form.sinClases,
+      gradeIds: form.todos ? null : form.gradeIds, sinClases: form.sinClases,
     }
     setGuardando(true)
     const r = form.id ? await editarActividad(form.id, d) : await crearActividad(d)
@@ -70,9 +70,12 @@ export default function CronogramaAdminPage() {
   }
 
   const editar = (it: DiaSinClase) => {
+    // Los días que se crearon antes solo para preescolar o para primaria y bachillerato se pasan a sus cursos
+    const deSeccion = !it.gradeIds?.length && it.scope !== 'all'
+      ? (datos?.cursos ?? []).filter(c => c.section === it.scope).map(c => c.id) : null
     setForm({
       id: it.id, tipo: it.kind === 'extracurricular' ? 'extracurricular' : 'sin_clase', startDate: it.startDate, endDate: it.endDate,
-      titulo: it.reason, todos: !it.gradeIds?.length, gradeIds: it.gradeIds ?? [], sinClases: it.noClass,
+      titulo: it.reason, todos: !it.gradeIds?.length && !deSeccion, gradeIds: it.gradeIds ?? deSeccion ?? [], sinClases: it.noClass,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -95,7 +98,7 @@ export default function CronogramaAdminPage() {
   }
 
   const cursosPorSeccion = (datos?.cursos ?? [])
-  const fechaValida = !!form.startDate && !!form.titulo.trim() && (form.tipo !== 'extracurricular' || form.todos || form.gradeIds.length > 0)
+  const fechaValida = !!form.startDate && !!form.titulo.trim() && (form.todos || form.gradeIds.length > 0)
 
   return (
     <main className={styles.mainContent}>
@@ -121,7 +124,7 @@ export default function CronogramaAdminPage() {
               <input type="radio" name="tipo" checked={form.tipo === 'sin_clase'} onChange={() => setForm({ ...form, tipo: 'sin_clase' })} /> Día sin clase
             </label>
           </div>
-          {form.tipo === 'sin_clase' && <span className={c.hint}>Para recesos, vacaciones o jornadas pedagógicas de todo el colegio. Los festivos no hay que agregarlos.</span>}
+          {form.tipo === 'sin_clase' && <span className={c.hint}>Para recesos, vacaciones o jornadas pedagógicas. Esos días no se pide planeación. Los festivos no hay que agregarlos.</span>}
 
           <label className={h.field}>{form.tipo === 'extracurricular' ? 'Actividad' : 'Motivo'}
             <input className={h.input} value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} maxLength={150}
@@ -132,30 +135,28 @@ export default function CronogramaAdminPage() {
             <label className={h.field}>Hasta (opcional)<input className={h.input} type="date" value={form.endDate} min={form.startDate || undefined} onChange={e => setForm({ ...form, endDate: e.target.value })} /></label>
           </div>
 
+          <div className={h.field}>
+            Cursos
+            <div className={c.radioRow}>
+              <label className={form.todos ? c.radioOn : ''}><input type="radio" name="cursos" checked={form.todos} onChange={() => setForm({ ...form, todos: true })} /> Todos los cursos</label>
+              <label className={!form.todos ? c.radioOn : ''}><input type="radio" name="cursos" checked={!form.todos} onChange={() => setForm({ ...form, todos: false })} /> Algunos cursos</label>
+            </div>
+          </div>
+          {!form.todos && (
+            <div className={s.courses}>
+              {cursosPorSeccion.map(x => (
+                <label key={x.id}>
+                  <input type="checkbox" checked={form.gradeIds.includes(x.id)}
+                    onChange={e => setForm({ ...form, gradeIds: e.target.checked ? [...form.gradeIds, x.id] : form.gradeIds.filter(g => g !== x.id) })} /> {x.nombre}
+                </label>
+              ))}
+            </div>
+          )}
           {form.tipo === 'extracurricular' && (
-            <>
-              <div className={h.field}>
-                Cursos
-                <div className={c.radioRow}>
-                  <label className={form.todos ? c.radioOn : ''}><input type="radio" name="cursos" checked={form.todos} onChange={() => setForm({ ...form, todos: true })} /> Todos los cursos</label>
-                  <label className={!form.todos ? c.radioOn : ''}><input type="radio" name="cursos" checked={!form.todos} onChange={() => setForm({ ...form, todos: false })} /> Algunos cursos</label>
-                </div>
-              </div>
-              {!form.todos && (
-                <div className={s.courses}>
-                  {cursosPorSeccion.map(x => (
-                    <label key={x.id}>
-                      <input type="checkbox" checked={form.gradeIds.includes(x.id)}
-                        onChange={e => setForm({ ...form, gradeIds: e.target.checked ? [...form.gradeIds, x.id] : form.gradeIds.filter(g => g !== x.id) })} /> {x.nombre}
-                    </label>
-                  ))}
-                </div>
-              )}
-              <label className={c.check}>
-                <input type="checkbox" checked={form.sinClases} onChange={e => setForm({ ...form, sinClases: e.target.checked })} />
-                Ese día no hay clases para estos cursos (no se pide planeación)
-              </label>
-            </>
+            <label className={c.check}>
+              <input type="checkbox" checked={form.sinClases} onChange={e => setForm({ ...form, sinClases: e.target.checked })} />
+              Ese día no hay clases para estos cursos (no se pide planeación)
+            </label>
           )}
 
           <div className={h.toolbar} style={{ marginBottom: 0 }}>

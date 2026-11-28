@@ -219,8 +219,8 @@ export default function EstudiantesPage() {
     <main className={styles.mainContent} style={{ position: 'relative' }}>
       <header className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div><h1>Gestión de Estudiantes 🎓</h1><p>Administra el listado de alumnos del Gimnasio Aluna.</p></div>
-        <Link href="/plataformas/admin/estudiantes/importar" className={styles.saveBtn} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
-          <FaUserPlus /> Importar Estudiantes
+        <Link href="/plataformas/admin/inscripciones" className={styles.saveBtn} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
+          <FaUserPlus /> Inscripciones
         </Link>
       </header>
 

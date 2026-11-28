@@ -11,8 +11,7 @@ import {
   FaHome,
   FaChevronDown,
   FaChevronUp,
-  FaUserPlus,
-  FaUpload,
+  FaUserCheck,
   FaList,
   FaBullhorn,
   FaUsersCog,
@@ -25,7 +24,6 @@ import {
   FaCalendarAlt,
   FaEdit,
   FaClipboardCheck,
-  FaCalendarTimes,
   FaFileAlt,
   FaCog,
   FaFlask,
@@ -39,6 +37,7 @@ import sidebarStyles from "app/styles/components/PlatformSidebar.module.scss";
 import horarioStyles from "app/styles/pages/Horario.module.scss";
 import { contarSolicitudesNuevas } from "app/app/plataformas/admin/certificados/actions";
 import { contarInscripcionesNuevas } from "app/app/plataformas/admin/inscripciones/actions";
+import { contarPostulacionesNuevas } from "app/app/plataformas/admin/contratacion/actions";
 
 export default function AdminSidebar() {
   const router = useRouter();
@@ -56,17 +55,21 @@ export default function AdminSidebar() {
   useEffect(() => {
     if (
       pathname?.includes("/estudiantes") ||
+      pathname?.includes("/inscripciones") ||
+      pathname?.includes("/matricula") ||
+      pathname?.includes("/circulares") ||
       pathname?.includes("/boletines") ||
       pathname?.includes("/sugerencias-preescolar")
     ) {
       setMenuAbierto("estudiantes");
     } else if (
       pathname?.includes("/profesores") ||
+      pathname?.includes("/contratacion") ||
       pathname?.includes("/materias") ||
       pathname?.includes("/cursos")
     ) {
       setMenuAbierto("profesores");
-    } else if (pathname?.includes("/horario")) {
+    } else if (pathname?.includes("/horario") || pathname?.includes("/cronograma")) {
       setMenuAbierto("horario");
     } else if (pathname?.includes("/certificados")) {
       setMenuAbierto("certificados");
@@ -78,10 +81,12 @@ export default function AdminSidebar() {
   // Aviso de solicitudes de certificados nuevas: al cambiar de página y cada 2 minutos
   const [solicitudesNuevas, setSolicitudesNuevas] = useState(0);
   const [inscripcionesNuevas, setInscripcionesNuevas] = useState(0);
+  const [docentesNuevos, setDocentesNuevos] = useState(0);
   useEffect(() => {
     const actualizar = () => {
       contarSolicitudesNuevas().then(setSolicitudesNuevas).catch(() => {});
       contarInscripcionesNuevas().then(setInscripcionesNuevas).catch(() => {});
+      contarPostulacionesNuevas().then(setDocentesNuevos).catch(() => {});
     };
     actualizar();
     const intervalo = setInterval(actualizar, 120000);
@@ -206,26 +211,6 @@ export default function AdminSidebar() {
             <FaHome /> Inicio
           </Link>
 
-          <Link
-            href="/plataformas/admin/inscripciones"
-            style={{
-              ...btnStyle,
-              justifyContent: "flex-start",
-              gap: "10px",
-              backgroundColor: pathname?.startsWith("/plataformas/admin/inscripciones")
-                ? "rgba(56, 189, 248, 0.1)"
-                : "transparent",
-              color: pathname?.startsWith("/plataformas/admin/inscripciones") ? "#38bdf8" : "#f8fafc",
-            }}
-          >
-            <FaClipboardList /> Inscripciones
-            {inscripcionesNuevas > 0 && (
-              <span className={horarioStyles.badge} title="Solicitudes de inscripción nuevas">
-                {inscripcionesNuevas > 99 ? "99+" : inscripcionesNuevas}
-              </span>
-            )}
-          </Link>
-
           <div>
             <button
               onClick={() => toggleMenu("estudiantes")}
@@ -244,6 +229,12 @@ export default function AdminSidebar() {
                   color={menuAbierto === "estudiantes" ? "#38bdf8" : "white"}
                 />{" "}
                 Estudiantes
+                {/* Con el menú cerrado, el aviso de inscripciones nuevas se ve aquí */}
+                {menuAbierto !== "estudiantes" && inscripcionesNuevas > 0 && (
+                  <span className={horarioStyles.badge} title="Solicitudes de inscripción nuevas">
+                    {inscripcionesNuevas > 99 ? "99+" : inscripcionesNuevas}
+                  </span>
+                )}
               </div>
               {menuAbierto === "estudiantes" ? (
                 <FaChevronUp size={12} color="#94a3b8" />
@@ -273,28 +264,32 @@ export default function AdminSidebar() {
                 <FaList /> Ver Listado
               </Link>
               <Link
-                href="/plataformas/admin/estudiantes/crear"
+                href="/plataformas/admin/inscripciones"
                 style={{
                   ...linkStyle,
-                  color:
-                    pathname === "/plataformas/admin/estudiantes/crear"
-                      ? "#38bdf8"
-                      : "#cbd5e1",
+                  color: pathname?.startsWith("/plataformas/admin/inscripciones")
+                    ? "#38bdf8"
+                    : "#cbd5e1",
                 }}
               >
-                <FaUserPlus /> Crear Manual
+                <FaClipboardList /> Inscripciones
+                {inscripcionesNuevas > 0 && (
+                  <span className={horarioStyles.badge} title="Solicitudes de inscripción nuevas">
+                    {inscripcionesNuevas > 99 ? "99+" : inscripcionesNuevas}
+                  </span>
+                )}
               </Link>
               <Link
-                href="/plataformas/admin/estudiantes/importar"
+                href="/plataformas/admin/estudiantes/exalumnos"
                 style={{
                   ...linkStyle,
                   color:
-                    pathname === "/plataformas/admin/estudiantes/importar"
+                    pathname === "/plataformas/admin/estudiantes/exalumnos"
                       ? "#38bdf8"
                       : "#cbd5e1",
                 }}
               >
-                <FaUpload /> Subir Matriz Excel
+                <FaUserGraduate /> Exalumnos
               </Link>
               <Link
                 href="/plataformas/admin/boletines"
@@ -320,6 +315,28 @@ export default function AdminSidebar() {
               >
                 <FaCommentDots /> Sugerencias Preescolar
               </Link>
+              <Link
+                href="/plataformas/admin/matricula"
+                style={{
+                  ...linkStyle,
+                  color: pathname?.startsWith("/plataformas/admin/matricula")
+                    ? "#38bdf8"
+                    : "#cbd5e1",
+                }}
+              >
+                <FaFolderOpen /> Proceso de matrícula
+              </Link>
+              <Link
+                href="/plataformas/admin/circulares"
+                style={{
+                  ...linkStyle,
+                  color: pathname?.startsWith("/plataformas/admin/circulares")
+                    ? "#38bdf8"
+                    : "#cbd5e1",
+                }}
+              >
+                <FaBullhorn /> Gestión de Circulares
+              </Link>
             </div>
           </div>
 
@@ -341,6 +358,11 @@ export default function AdminSidebar() {
                   color={menuAbierto === "profesores" ? "#38bdf8" : "white"}
                 />{" "}
                 Docentes
+                {menuAbierto !== "profesores" && docentesNuevos > 0 && (
+                  <span className={horarioStyles.badge} title="Docentes nuevos por revisar">
+                    {docentesNuevos > 99 ? "99+" : docentesNuevos}
+                  </span>
+                )}
               </div>
               {menuAbierto === "profesores" ? (
                 <FaChevronUp size={12} color="#94a3b8" />
@@ -370,28 +392,20 @@ export default function AdminSidebar() {
                 <FaList /> Gestión Docente
               </Link>
               <Link
-                href="/plataformas/admin/profesores/crear"
+                href="/plataformas/admin/contratacion"
                 style={{
                   ...linkStyle,
-                  color:
-                    pathname === "/plataformas/admin/profesores/crear"
-                      ? "#38bdf8"
-                      : "#cbd5e1",
+                  color: pathname?.startsWith("/plataformas/admin/contratacion")
+                    ? "#38bdf8"
+                    : "#cbd5e1",
                 }}
               >
-                <FaUserPlus /> Contratar Manual
-              </Link>
-              <Link
-                href="/plataformas/admin/profesores/importar"
-                style={{
-                  ...linkStyle,
-                  color:
-                    pathname === "/plataformas/admin/profesores/importar"
-                      ? "#38bdf8"
-                      : "#cbd5e1",
-                }}
-              >
-                <FaUpload /> Subir Matriz Académica
+                <FaUserCheck /> Contratación
+                {docentesNuevos > 0 && (
+                  <span className={horarioStyles.badge} title="Docentes nuevos por revisar">
+                    {docentesNuevos > 99 ? "99+" : docentesNuevos}
+                  </span>
+                )}
               </Link>
               <Link
                 href="/plataformas/admin/materias"
@@ -490,16 +504,15 @@ export default function AdminSidebar() {
                 <FaClipboardCheck /> Planeación Semanal
               </Link>
               <Link
-                href="/plataformas/admin/horario/dias-sin-clase"
+                href="/plataformas/admin/cronograma"
                 style={{
                   ...linkStyle,
-                  color:
-                    pathname === "/plataformas/admin/horario/dias-sin-clase"
-                      ? "#38bdf8"
-                      : "#cbd5e1",
+                  color: pathname?.startsWith("/plataformas/admin/cronograma")
+                    ? "#38bdf8"
+                    : "#cbd5e1",
                 }}
               >
-                <FaCalendarTimes /> Días sin Clase
+                <FaCalendarCheck /> Cronograma
               </Link>
             </div>
           </div>
@@ -555,18 +568,6 @@ export default function AdminSidebar() {
                 }}
               >
                 <FaList /> Solicitudes
-              </Link>
-              <Link
-                href="/plataformas/admin/certificados/exalumnos"
-                style={{
-                  ...linkStyle,
-                  color:
-                    pathname === "/plataformas/admin/certificados/exalumnos"
-                      ? "#38bdf8"
-                      : "#cbd5e1",
-                }}
-              >
-                <FaUserGraduate /> Exalumnos
               </Link>
               <Link
                 href="/plataformas/admin/certificados/configuracion"
@@ -669,66 +670,6 @@ export default function AdminSidebar() {
                 <FaCog /> Configuración
               </Link>
             </div>
-          </div>
-
-          <div>
-            <Link
-              href="/plataformas/admin/circulares"
-              style={{
-                ...btnStyle,
-                justifyContent: "flex-start",
-                gap: "10px",
-                backgroundColor: pathname?.includes("/circulares")
-                  ? "rgba(56, 189, 248, 0.1)"
-                  : "transparent",
-                color: pathname?.includes("/circulares")
-                  ? "#38bdf8"
-                  : "#f8fafc",
-                marginTop: "10px",
-              }}
-            >
-              <FaBullhorn /> Gestión de Circulares
-            </Link>
-          </div>
-
-          <div>
-            <Link
-              href="/plataformas/admin/matricula"
-              style={{
-                ...btnStyle,
-                justifyContent: "flex-start",
-                gap: "10px",
-                backgroundColor: pathname?.startsWith("/plataformas/admin/matricula")
-                  ? "rgba(56, 189, 248, 0.1)"
-                  : "transparent",
-                color: pathname?.startsWith("/plataformas/admin/matricula")
-                  ? "#38bdf8"
-                  : "#f8fafc",
-                marginTop: "10px",
-              }}
-            >
-              <FaFolderOpen /> Proceso de matrícula
-            </Link>
-          </div>
-
-          <div>
-            <Link
-              href="/plataformas/admin/cronograma"
-              style={{
-                ...btnStyle,
-                justifyContent: "flex-start",
-                gap: "10px",
-                backgroundColor: pathname?.startsWith("/plataformas/admin/cronograma")
-                  ? "rgba(56, 189, 248, 0.1)"
-                  : "transparent",
-                color: pathname?.startsWith("/plataformas/admin/cronograma")
-                  ? "#38bdf8"
-                  : "#f8fafc",
-                marginTop: "10px",
-              }}
-            >
-              <FaCalendarCheck /> Cronograma
-            </Link>
           </div>
 
           <div>

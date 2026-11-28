@@ -2,7 +2,7 @@
 
 import { verificarRol } from 'app/utils/supabase/auth-check'
 import {
-  type AlcanceDiaSinClase, type DiaSinClase, type EstadoPlaneacion, type Franja, type Seccion,
+  type EstadoPlaneacion, type Franja, type Seccion,
   clavePlaneacion, esFechaISO, fechasDeSemana, lunesDeSemana, motivoSinClase, seSolapan, sumarDias,
 } from 'app/utils/horario/comun'
 import {
@@ -325,41 +325,4 @@ export async function editarPlaneacion(planId: number, contenido: string, public
     await notificarDocente(admin, { teacherId: actual.teacher_id, planId, kind: 'plan_edited', message: null, createdBy: userId ?? null })
   }
   return { exito: true, status: (quedaPublicada ? 'published' : 'draft') as EstadoPlaneacion, adminEdited: cambioTexto }
-}
-
-// ================= DÍAS SIN CLASE =================
-
-export async function obtenerDiasSinClase(): Promise<{ exito: boolean, error?: string, dias?: DiaSinClase[] }> {
-  const { autorizado, error: authError } = await verificarRol('admin')
-  if (!autorizado) return { exito: false, error: authError }
-  // Las actividades extracurriculares se manejan en Cronograma
-  return { exito: true, dias: (await cargarDiasSinClase(getAdmin())).filter(d => d.kind !== 'extracurricular') }
-}
-
-export async function crearDiaSinClase(datos: { startDate: string, endDate: string, reason: string, scope: AlcanceDiaSinClase }) {
-  const { autorizado, error: authError } = await verificarRol('admin')
-  if (!autorizado) return { exito: false, error: authError }
-
-  const reason = datos.reason.trim()
-  const endDate = datos.endDate || datos.startDate
-  if (!esFechaISO(datos.startDate) || !esFechaISO(endDate)) return { exito: false, error: 'Selecciona una fecha válida.' }
-  if (endDate < datos.startDate) return { exito: false, error: 'La fecha final no puede ser anterior a la inicial.' }
-  if (!reason) return { exito: false, error: 'Escribe el motivo (por ejemplo, «Festivo: Día de la Raza»).' }
-  if (!['all', 'preescolar', 'general'].includes(datos.scope)) return { exito: false, error: 'Selecciona a quién aplica.' }
-
-  const { error } = await getAdmin()
-    .from('school_days_off')
-    .insert({ start_date: datos.startDate, end_date: endDate, reason, scope: datos.scope })
-
-  if (error) return { exito: false, error: error.message }
-  return { exito: true }
-}
-
-export async function eliminarDiaSinClase(id: number) {
-  const { autorizado, error: authError } = await verificarRol('admin')
-  if (!autorizado) return { exito: false, error: authError }
-
-  const { error } = await getAdmin().from('school_days_off').delete().eq('id', id)
-  if (error) return { exito: false, error: error.message }
-  return { exito: true }
 }

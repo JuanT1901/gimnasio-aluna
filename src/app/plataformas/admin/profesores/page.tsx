@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { cambiarContrasenaProfesor, toggleEstadoProfesor, actualizarPerfilProfesor, asignarClaseProfesor, eliminarClaseProfesor, obtenerEmailAuth, actualizarEmailProfesor } from './actions'
 import styles from 'app/styles/pages/Dashboard.module.scss'
 import { FaChalkboardTeacher, FaBook, FaSpinner,
-         FaUpload, FaArrowLeft, FaEdit, FaList,
+         FaArrowLeft, FaEdit, FaList,
          FaPlus, FaTrash, FaSave, FaUserEdit,
          FaUserCheck, FaUserSlash, FaKey, FaIdCard, FaChevronDown } from 'react-icons/fa'
 
@@ -269,17 +269,17 @@ export default function AdminProfesoresPage() {
             </div>
             
             <Link 
-              href="/plataformas/admin/profesores/importar" 
+              href="/plataformas/admin/contratacion"
               style={{ backgroundColor: '#10b981', color: 'white', textDecoration: 'none', padding: '12px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}
             >
-              <FaUpload /> Importar Matriz Excel
+              <FaUserCheck /> Contratación
             </Link>
           </header>
 
           <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
             {profesores.length === 0 ? (
               <div className={styles.card} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                No hay profesores registrados. Sube la matriz docente para comenzar.
+                No hay profesores registrados. Comparte el enlace de Contratación para registrar a los docentes nuevos.
               </div>
             ) : (
               <>

@@ -87,7 +87,7 @@ export type DatosActividad = {
   startDate: string
   endDate: string
   titulo: string
-  gradeIds: number[] | null // null = todos los cursos
+  gradeIds: number[] | null // null = todos los cursos (también en los días sin clase, p. ej. un receso solo de preescolar)
   sinClases: boolean // true = ese día no hay clases para esos cursos (no se pide planeación)
 }
 
@@ -98,9 +98,9 @@ function validar(d: DatosActividad) {
   if (!esFechaISO(d.startDate) || !esFechaISO(fin)) return { error: 'Selecciona una fecha válida.' }
   if (fin < d.startDate) return { error: 'La fecha final no puede ser anterior a la inicial.' }
   if (!titulo) return { error: d.tipo === 'extracurricular' ? 'Escribe el nombre de la actividad.' : 'Escribe el motivo (p. ej. «Receso escolar»).' }
-  const gradeIds = d.tipo === 'extracurricular' && Array.isArray(d.gradeIds) && d.gradeIds.length
+  const gradeIds = Array.isArray(d.gradeIds) && d.gradeIds.length
     ? [...new Set(d.gradeIds.map(Number).filter(n => Number.isInteger(n) && n > 0))] : null
-  if (d.tipo === 'extracurricular' && Array.isArray(d.gradeIds) && d.gradeIds.length === 0) return { error: 'Selecciona al menos un curso o elige «Todos los cursos».' }
+  if (Array.isArray(d.gradeIds) && d.gradeIds.length === 0) return { error: 'Selecciona al menos un curso o elige «Todos los cursos».' }
   return {
     fila: {
       kind: d.tipo, start_date: d.startDate, end_date: fin, reason: titulo, scope: 'all',
