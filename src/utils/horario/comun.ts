@@ -41,12 +41,19 @@ export type Planeacion = {
   adminEdited: boolean // la rectora cambió el texto
 }
 
+// Tipo de día en el cronograma: festivo (se calcula solo), día sin clase (receso, jornada pedagógica)
+// o actividad extracurricular (puede ser de algunos cursos)
+export type TipoDia = 'festivo' | 'sin_clase' | 'extracurricular'
+
 export type DiaSinClase = {
-  id: number
+  id: number // los festivos calculados tienen id negativo (no están guardados)
   startDate: string
   endDate: string
   reason: string
   scope: AlcanceDiaSinClase
+  kind: TipoDia
+  gradeIds: number[] | null // null = todos los cursos (según scope); con valor = solo esos cursos
+  noClass: boolean // false = actividad informativa: ese día sí hay clase y se pide planeación
 }
 
 export type DatosHorario = {
@@ -169,8 +176,12 @@ export function etiquetaSemana(lunes: string) {
 
 // ---------- Días sin clase y planeaciones ----------
 
-export function motivoSinClase(dias: DiaSinClase[], iso: string, seccion: Seccion) {
-  const dia = dias.find(d => iso >= d.startDate && iso <= d.endDate && (d.scope === 'all' || d.scope === seccion))
+// Motivo por el que un curso no tiene clase ese día (y no se le pide planeación), o null si hay clase.
+// Sin gradeId (p. ej. la columna completa del horario) solo cuentan los días que aplican a todos los cursos.
+export function motivoSinClase(dias: DiaSinClase[], iso: string, seccion: Seccion, gradeId?: number) {
+  const dia = dias.find(d =>
+    d.noClass && iso >= d.startDate && iso <= d.endDate && (d.scope === 'all' || d.scope === seccion) &&
+    (!d.gradeIds || (gradeId !== undefined && d.gradeIds.includes(gradeId))))
   return dia ? dia.reason : null
 }
 

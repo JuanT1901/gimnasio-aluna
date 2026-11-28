@@ -30,6 +30,7 @@ import {
   FaCog,
   FaFlask,
   FaFolderOpen,
+  FaCalendarCheck,
   FaFlagCheckered,
   FaRedoAlt,
   FaClipboardList,
@@ -707,6 +708,26 @@ export default function AdminSidebar() {
               }}
             >
               <FaFolderOpen /> Proceso de matrícula
+            </Link>
+          </div>
+
+          <div>
+            <Link
+              href="/plataformas/admin/cronograma"
+              style={{
+                ...btnStyle,
+                justifyContent: "flex-start",
+                gap: "10px",
+                backgroundColor: pathname?.startsWith("/plataformas/admin/cronograma")
+                  ? "rgba(56, 189, 248, 0.1)"
+                  : "transparent",
+                color: pathname?.startsWith("/plataformas/admin/cronograma")
+                  ? "#38bdf8"
+                  : "#f8fafc",
+                marginTop: "10px",
+              }}
+            >
+              <FaCalendarCheck /> Cronograma
             </Link>
           </div>
 

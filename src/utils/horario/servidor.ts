@@ -1,6 +1,7 @@
 // Funciones de apoyo del horario que solo se ejecutan en el servidor (usan la llave de servicio).
 import { createClient as createServiceClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from 'app/utils/supabase/server'
+import { festivosEntre } from 'app/utils/cronograma/festivos'
 import {
   type ClaseHorario, type DiaSinClase, type Franja, type Planeacion, type Seccion,
   horaCorta, normalizarTexto, seccionDeCurso,
@@ -129,11 +130,28 @@ export function construirClases(casillas: FilaCasilla[], franjas: Franja[], cat:
   return clases.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.start.localeCompare(b.start))
 }
 
+// Días sin clase y actividades del cronograma. Con «desde» y «hasta» incluye también los festivos de Colombia,
+// que se calculan solos (no hay que digitarlos).
+// Se lee con «*» para que funcione aunque aún no se haya corrido supabase/cronograma.sql (columnas kind, grade_ids, no_class).
 export async function cargarDiasSinClase(admin: SupabaseClient, desde?: string, hasta?: string): Promise<DiaSinClase[]> {
-  let q = admin.from('school_days_off').select('id, start_date, end_date, reason, scope').order('start_date', { ascending: true })
+  let q = admin.from('school_days_off').select('*').order('start_date', { ascending: true })
   if (desde && hasta) q = q.lte('start_date', hasta).gte('end_date', desde)
   const { data } = await q
-  return (data || []).map(d => ({ id: d.id, startDate: d.start_date, endDate: d.end_date, reason: d.reason, scope: d.scope }))
+  const guardados: DiaSinClase[] = (data || []).map(d => ({
+    id: d.id, startDate: d.start_date, endDate: d.end_date, reason: d.reason, scope: d.scope ?? 'all',
+    kind: d.kind ?? 'sin_clase', gradeIds: Array.isArray(d.grade_ids) && d.grade_ids.length ? d.grade_ids.map(Number) : null,
+    noClass: d.no_class !== false,
+  }))
+  if (!desde || !hasta) return guardados
+
+  // Los festivos que ya se habían digitado a mano (p. ej. «Festivo: Día de la Raza») no se repiten
+  const yaDigitado = (fecha: string) => guardados.some(g => g.startDate === fecha && /festivo/i.test(g.reason))
+  const festivos: DiaSinClase[] = festivosEntre(desde, hasta)
+    .filter(f => !yaDigitado(f.fecha))
+    .map((f, i) => ({
+      id: -(i + 1), startDate: f.fecha, endDate: f.fecha, reason: `Festivo: ${f.nombre}`, scope: 'all', kind: 'festivo', gradeIds: null, noClass: true,
+    }))
+  return [...guardados, ...festivos].sort((a, b) => a.startDate.localeCompare(b.startDate))
 }
 
 type FilaPlaneacion = Planeacion & { teacherId: string | null }

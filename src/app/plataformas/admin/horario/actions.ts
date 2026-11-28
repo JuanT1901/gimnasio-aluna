@@ -214,7 +214,7 @@ export async function obtenerPlaneacionesSemana(semana: string) {
   fechasDeSemana(lunes).forEach((fecha, i) => {
     for (const c of clases) {
       if (c.dayOfWeek !== i + 1 || !c.subjectId) continue
-      if (motivoSinClase(diasSinClase, fecha, c.section)) continue
+      if (motivoSinClase(diasSinClase, fecha, c.section, c.gradeId)) continue
       const clave = clavePlaneacion(c.gradeId, c.subjectId, fecha)
       const fila = filas.get(clave) ?? {
         clave, gradeId: c.gradeId, gradeName: c.gradeName, gradeOrden: cat.cursos.get(c.gradeId)?.orden ?? 0,
@@ -332,7 +332,8 @@ export async function editarPlaneacion(planId: number, contenido: string, public
 export async function obtenerDiasSinClase(): Promise<{ exito: boolean, error?: string, dias?: DiaSinClase[] }> {
   const { autorizado, error: authError } = await verificarRol('admin')
   if (!autorizado) return { exito: false, error: authError }
-  return { exito: true, dias: await cargarDiasSinClase(getAdmin()) }
+  // Las actividades extracurriculares se manejan en Cronograma
+  return { exito: true, dias: (await cargarDiasSinClase(getAdmin())).filter(d => d.kind !== 'extracurricular') }
 }
 
 export async function crearDiaSinClase(datos: { startDate: string, endDate: string, reason: string, scope: AlcanceDiaSinClase }) {

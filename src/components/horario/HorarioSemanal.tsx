@@ -146,7 +146,7 @@ export default function HorarioSemanal({ datos, cargando, rol, userId, mostrarCu
     const c = b.clase!
     const nombre = c.subjectName ?? c.label ?? 'Clase'
     const detalle = mostrarCurso ? c.gradeName : c.teacherName ?? ''
-    const sinClase = motivoSinClase(datos.diasSinClase, fecha, c.section)
+    const sinClase = motivoSinClase(datos.diasSinClase, fecha, c.section, c.gradeId)
 
     if (!c.subjectId) {
       return (

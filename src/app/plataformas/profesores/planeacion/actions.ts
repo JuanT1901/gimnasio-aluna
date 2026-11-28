@@ -77,7 +77,7 @@ export async function obtenerMiPlaneacion(semana: string): Promise<{ exito: bool
       grupo.dias.push({
         fecha,
         horas,
-        sinClase: motivoSinClase(dias, fecha, seccion),
+        sinClase: motivoSinClase(dias, fecha, seccion, grupo.gradeId),
         plan: p ? {
           id: p.id, content: p.content, status: p.status, updatedAt: p.updatedAt,
           reviewNote: p.reviewNote, adminEdited: p.adminEdited,
@@ -125,7 +125,7 @@ export async function subirPlaneacion(datos: { gradeId: number, subjectId: strin
   const franjasDeClase = new Set(franjas.filter(f => !f.isBreak).map(f => f.id))
   if (!(casillas || []).some(c => franjasDeClase.has(c.slot_id))) return { exito: false, error: 'Esta materia no tiene clase ese día en el horario.' }
 
-  const sinClase = motivoSinClase(dias, datos.classDate, curso.section)
+  const sinClase = motivoSinClase(dias, datos.classDate, curso.section, datos.gradeId)
   if (sinClase) return { exito: false, error: `Ese día no hay clase (${sinClase}).` }
 
   // Cada vez que se sube (también al editar una ya publicada) vuelve a borrador para que la rectora la revise.
